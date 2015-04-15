@@ -17,6 +17,10 @@ public  class LlvmBranch extends LlvmInstruction{
     
     //Falta esse método
     public String toString(){
-		return null;
+    	if (cond == null){
+    		return "  " + "br" + " label " + brTrue;
+    	}
+    	//br i1 <cond>, label <iftrue>, label <iffalse>
+    	return "  " + "br" + cond + " label " + brTrue + "," + " label " + brFalse;
     }
 }
