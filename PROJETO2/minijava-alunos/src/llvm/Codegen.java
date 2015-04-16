@@ -49,6 +49,7 @@ public class Codegen extends VisitorAdapter{
 	private ClassNode classEnv; 	// Aponta para a classe atualmente em uso em symTab
 	private MethodNode methodEnv; 	// Aponta para a metodo atualmente em uso em symTab
 
+	public static int counter_label = 0;
 
 	public Codegen(){
 		assembler = new LinkedList<LlvmInstruction>();
@@ -177,7 +178,79 @@ public class Codegen extends VisitorAdapter{
 	}
 	public LlvmValue visit(IdentifierType n){return null;}
 	public LlvmValue visit(Block n){return null;}
-	public LlvmValue visit(If n){return null;}
+	public LlvmValue visit(If n){
+		//pega o registrador referente a condicao do if em cond
+		LlvmValue cond = n.condition.accept(this);
+		System.out.format("cond: %s\n",cond);
+		System.out.format("n.condition: %s\n", n.condition);
+		
+		//cria as labels referentes a cada branch
+		LlvmLabelValue brTrue = new LlvmLabelValue("iflabeltrue"+counter_label);
+		counter_label++;
+		System.out.format("label1: %s\n",brTrue);
+		LlvmLabelValue brFalse = new LlvmLabelValue("iflabelfalse"+counter_label);
+		counter_label++;
+		System.out.format("label2: %s\n",brFalse);
+		//cria label referente ao break da label para a qual pulamos.
+		LlvmLabelValue brBreak = new LlvmLabelValue("iflabelbreak"+counter_label);
+		counter_label++;
+		System.out.format("label3: %s\n",brBreak);
+		
+		if(n.elseClause!=null && n.thenClause!=null){
+			//faz o branch condicional, pulando para label brTrue se a cond retornar 1, e para brFalse se retornar 0
+			assembler.add(new LlvmBranch(cond, brTrue, brFalse));
+
+			//label brTrue
+			assembler.add(new LlvmLabel(brTrue));
+			
+			//gera codigo contido na thenClause
+			n.thenClause.accept(this);
+
+			System.out.format("thenClause: %s\n",n.thenClause);
+
+			//se pulou para label brTrue, agora ele pula para o brBreak, com o intuito de pular o brFalse
+			assembler.add(new LlvmBranch(brBreak));
+			
+			assembler.add(new LlvmLabel(brFalse));
+			
+			System.out.format("elseClause: %s\n",n.elseClause);
+
+			//gera o codigo contido na elseClause
+			n.elseClause.accept(this);
+			
+		} else if(n.elseClause!=null && n.thenClause==null){
+			//faz o branch condicional, pulando para label brBreak se a cond retornar 1, e para brFalse se retornar 0
+			assembler.add(new LlvmBranch(cond, brBreak, brFalse));
+
+			System.out.format("elseClause != null");
+		
+			assembler.add(new LlvmLabel(brFalse));
+
+			System.out.format("elseClause: %s\n",n.elseClause);
+
+			//gera o codigo contido na elseClause
+			n.elseClause.accept(this);
+			
+		} else {
+			//faz o branch condicional, pulando para label brTrue se a cond retornar 1, e para brBreak se retornar 0
+			assembler.add(new LlvmBranch(cond, brTrue, brBreak));
+			//label brTrue
+			assembler.add(new LlvmLabel(brTrue));
+			
+			//gera codigo contido na thenClause
+			n.thenClause.accept(this);
+
+			System.out.format("thenClause: %s\n",n.thenClause);
+			
+			//se pulou para label brTrue, agora ele pula para o brBreak, com o intuito de pular o brFalse
+			assembler.add(new LlvmBranch(brBreak));
+		}
+		//assembler.add(new LlvmBranch(brBreak));
+		//label do break
+		assembler.add(new LlvmLabel(brBreak));
+		
+		return null;
+	}
 	public LlvmValue visit(While n){return null;}
 	public LlvmValue visit(Assign n){return null;}
 	public LlvmValue visit(ArrayAssign n){return null;}
@@ -195,6 +268,7 @@ public class Codegen extends VisitorAdapter{
 		LlvmValue v2 = n.rhs.accept(this);
 		LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I32);
 		//utilizando 0 para lessthan
+		System.out.format("acessei o lessthan :)\n");
 		assembler.add(new LlvmIcmp(lhs,0,LlvmPrimitiveType.I32,v1,v2));
 		return lhs; 
 	}
