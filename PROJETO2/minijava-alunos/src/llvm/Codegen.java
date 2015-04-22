@@ -251,7 +251,46 @@ public class Codegen extends VisitorAdapter{
 		
 		return null;
 	}
-	public LlvmValue visit(While n){return null;}
+	public LlvmValue visit(While n){
+		
+		//pega o registrador referente a condicao do while em cond
+		LlvmValue cond = n.condition.accept(this);
+		System.out.format("cond: %s\n",cond);
+		System.out.format("n.condition: %s\n", n.condition);
+		
+		//cria as labels referentes a cada branch
+		
+		//cria label referente ao while.
+		LlvmLabelValue brTrue = new LlvmLabelValue("whilelabeltrue"+counter_label);
+		counter_label++;
+		System.out.format("label1: %s\n",brTrue);
+		
+		//cria label referente ao break do while.
+		LlvmLabelValue brBreak = new LlvmLabelValue("whilelabelbreak"+counter_label);
+		counter_label++;
+		System.out.format("label2: %s\n",brBreak);
+				
+		//faz o branch condicional, pulando para label brTrue se a cond retornar 1, e para brBreak se retornar 0
+		//(ou seja, da break quando nao atende mais a condicao)
+		
+		assembler.add(new LlvmBranch(cond, brTrue, brBreak));
+				
+		//label brTrue
+		assembler.add(new LlvmLabel(brTrue));
+		
+		System.out.format("body: %s\n",n.body);
+		
+		//gera codigo contido dentro do while
+		n.body.accept(this);
+		
+		//depois de executar o codigo dentro do while, faz de novo o branch. 
+		assembler.add(new LlvmBranch(cond, brTrue, brBreak));
+		
+		//label do break
+		assembler.add(new LlvmLabel(brBreak));
+			
+		return null;
+	}
 	public LlvmValue visit(Assign n){return null;}
 	public LlvmValue visit(ArrayAssign n){return null;}
 	//test
