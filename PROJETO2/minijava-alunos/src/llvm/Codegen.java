@@ -359,9 +359,10 @@ public class Codegen extends VisitorAdapter{
 		//Para nao implementar xor usou-se o Icmp com equal e 0 (primeiro termo fixo), 
 		//pois 0 == 0 é true (1) e 0 == 1 é false, ou seja, 0.
 		LlvmValue v1 = n.exp.accept(this);
-        	LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I1);
-        	assembler.add(new LlvmIcmp(lhs,1,LlvmPrimitiveType.I32,v1,new LlvmBool(0)));
-        	return lhs;
+        LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I1);
+        assembler.add(new LlvmIcmp(lhs,1,v1.type,v1,new LlvmBool(0)));
+        return lhs;
+        
 	}
 	public LlvmValue visit(Identifier n){return null;}
 }
