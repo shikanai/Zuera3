@@ -295,10 +295,15 @@ public class Codegen extends VisitorAdapter{
 	public LlvmValue visit(ArrayAssign n){return null;}
 	//test
 	public LlvmValue visit(And n){
+		
+		//aceita os dois elementos
 		LlvmValue v1 = n.lhs.accept(this);
 		LlvmValue v2 = n.rhs.accept(this);
-		LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I32);
-		assembler.add(new LlvmAnd(lhs,LlvmPrimitiveType.I32,v1,v2));
+		//cria um registrador bool que sera retornado
+		LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I1);
+		
+		//faz icmp com eq, passando como parametro o tipo de v1 (podia ser tipo de v2 tbm)
+		assembler.add(new LlvmIcmp(lhs,1,v1.type,v1,v2));
 		return lhs;
 	}
 	//test
@@ -309,9 +314,9 @@ public class Codegen extends VisitorAdapter{
 		//utilizando 0 para lessthan
 		System.out.format("acessei o lessthan :)\n");
 		assembler.add(new LlvmIcmp(lhs,0,LlvmPrimitiveType.I32,v1,v2));
-		return lhs; 
+		return lhs;
 	}
-	//test
+	//ok
 	public LlvmValue visit(Equal n){
 		LlvmValue v1 = n.lhs.accept(this);
 		LlvmValue v2 = n.rhs.accept(this);
@@ -339,12 +344,12 @@ public class Codegen extends VisitorAdapter{
 	public LlvmValue visit(ArrayLookup n){return null;}
 	public LlvmValue visit(ArrayLength n){return null;}
 	public LlvmValue visit(Call n){return null;}
-	//test
+	//ok
 	public LlvmValue visit(True n){
 		//1 -> true
 		return new LlvmBool(1);
 	}
-	//test
+	//ok
 	public LlvmValue visit(False n){
 		//0 -> false
 		return new LlvmBool(0);
@@ -353,7 +358,7 @@ public class Codegen extends VisitorAdapter{
 	public LlvmValue visit(This n){return null;}
 	public LlvmValue visit(NewArray n){return null;}
 	public LlvmValue visit(NewObject n){return null;}
-	//test
+	//ok
 	public LlvmValue visit(Not n){
 		//ideia era um xor com 1, porque ele inverte o bit. 1 xor 1 = 0 e 1 xor 0 = 1
 		//Para nao implementar xor usou-se o Icmp com equal e 0 (primeiro termo fixo), 
