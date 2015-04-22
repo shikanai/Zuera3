@@ -355,7 +355,12 @@ public class Codegen extends VisitorAdapter{
 		return new LlvmBool(0);
 	}
 	public LlvmValue visit(IdentifierExp n){return null;}
-	public LlvmValue visit(This n){return null;}
+	//test
+	public LlvmValue visit(This n){
+		LlvmType thisType = (LlvmType) n.type.accept(this);
+		LlvmRegister thisReg = new LlvmRegister("%this_register", thisType);
+		return thisReg;
+	}
 	public LlvmValue visit(NewArray n){return null;}
 	public LlvmValue visit(NewObject n){return null;}
 	//ok
