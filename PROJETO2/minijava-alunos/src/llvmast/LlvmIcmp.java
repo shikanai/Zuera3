@@ -22,6 +22,14 @@ public  class LlvmIcmp extends LlvmInstruction{
     	if(conditionCode == 1){
     		return "  " + lhs + " = icmp " + "eq" + " " + type + " " + op1 + ", " + op2;
     	}
+    	//sge -> greaterthan
+    	if(conditionCode == 2){
+    		return "  " + lhs + " = icmp " + "sgt" + " " + type + " " + op1 + ", " + op2;
+    	}
+    	//ne -> noteq
+    	if(conditionCode == 3){
+    		return "  " + lhs + " = icmp " + "ne" + " " + type + " " + op1 + ", " + op2;
+    	}
 		return null;
     }
     

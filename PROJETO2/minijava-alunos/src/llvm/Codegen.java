@@ -296,33 +296,43 @@ public class Codegen extends VisitorAdapter{
 	//test
 	public LlvmValue visit(And n){
 		
-		//aceita os dois elementos
 		LlvmValue v1 = n.lhs.accept(this);
 		LlvmValue v2 = n.rhs.accept(this);
-		//cria um registrador bool que sera retornado
+
 		LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I1);
+		LlvmRegister aux1 = new LlvmRegister(LlvmPrimitiveType.I1);
 		
-		//faz icmp com eq, passando como parametro o tipo de v1 (podia ser tipo de v2 tbm)
-		assembler.add(new LlvmIcmp(lhs,1,v1.type,v1,v2));
+		//para termos certeza de que soh sera executado o codigo quando tivermos true e true, vamos usar o LlvmTimes
+		//para multiplicar um pelo outro. Assim, quando ao menos um deles for false, teremos resposta zero
+		
+		//o tipo de v1 e v2 eh o mesmo, entao passamos o de v1
+		assembler.add(new LlvmTimes(aux1, v1.type, v1, v2));
+		
+		LlvmIntegerLiteral aux2 = new LlvmIntegerLiteral(1);
+		
+		//compara o resultado da multiplicacao com 1(pois todas as vezes que um for false, o resultado de mul vai ser zero).
+		assembler.add(new LlvmIcmp(lhs,1,aux1.type,aux1,aux2));
+		
+		//retorna o registrador contendo o resultado
 		return lhs;
 	}
 	//test
 	public LlvmValue visit(LessThan n){
 		LlvmValue v1 = n.lhs.accept(this);
 		LlvmValue v2 = n.rhs.accept(this);
-		LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I32);
+		LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I1);
 		//utilizando 0 para lessthan
 		System.out.format("acessei o lessthan :)\n");
-		assembler.add(new LlvmIcmp(lhs,0,LlvmPrimitiveType.I32,v1,v2));
+		assembler.add(new LlvmIcmp(lhs,0,LlvmPrimitiveType.I1,v1,v2));
 		return lhs;
 	}
 	//ok
 	public LlvmValue visit(Equal n){
 		LlvmValue v1 = n.lhs.accept(this);
 		LlvmValue v2 = n.rhs.accept(this);
-		LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I32);
+		LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I1);
 		//utilizando 1 para equal
-		assembler.add(new LlvmIcmp(lhs,1,LlvmPrimitiveType.I32,v1,v2));
+		assembler.add(new LlvmIcmp(lhs,1,LlvmPrimitiveType.I1,v1,v2));
 		return lhs;
 	}
 	//ok
