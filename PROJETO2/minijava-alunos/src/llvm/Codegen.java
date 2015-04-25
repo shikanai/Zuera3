@@ -160,12 +160,90 @@ public class Codegen extends VisitorAdapter{
 	};
 	
 	// Todos os visit's que devem ser implementados	
-	public LlvmValue visit(ClassDeclSimple n){return null;}
-	public LlvmValue visit(ClassDeclExtends n){return null;}
-	public LlvmValue visit(VarDecl n){return null;}
-	public LlvmValue visit(MethodDecl n){return null;}
-	public LlvmValue visit(Formal n){return null;}
-	public LlvmValue visit(IntArrayType n){return null;}
+	public LlvmValue visit(ClassDeclSimple n){
+		
+		//seguindo o padrao do slide 21/47 parte 1 llvm...
+		
+		System.out.format("classdeclsimple :)\n");
+		
+		int i, j;
+		
+		//criando uma string, onde serao concatenados os tipos das variaveis da classe.
+		StringBuilder classTypes = new StringBuilder();
+		
+		//criando uma string, onde serao concatenados os tipos das variaveis da classe.
+		StringBuilder classMethods = new StringBuilder();
+		
+		//criando uma string onde sera colocado o nome da classe
+		StringBuilder className = new StringBuilder();
+		
+		//%class.name
+		className.append("%class.");
+		className.append(n.name.s);
+		
+		//type { type1, type2, ... }
+		classTypes.append("type { ");				
+		if (n.varList != null) {
+			j = n.varList.size();
+			System.out.format("Numero de variaveis: %d\n", j);
+			System.out.format("tipos das variaveis:\n");
+			for (i = 0; i < j; i++){
+				//itera a lista de variaveis para pegar todos os tipos e appendar em classTypes.
+				LlvmValue variable_type = n.varList.head.type.accept(this);
+				
+				System.out.format("%s ", variable_type);
+				
+				//appenda os tipos de variaveis
+				classTypes.append(variable_type);
+				
+				if (i + 1 < j){
+					classTypes.append(", ");
+				}
+				
+				n.varList = n.varList.tail;
+			}
+		}
+		classTypes.append(" }");
+		
+		System.out.format("\nclassType final: %s\n", classTypes);
+		
+		System.out.format("className: %s\n",className);
+		
+		// Adiciona declaracao de classe no assembly
+		assembler.add(new LlvmConstantDeclaration(className.toString(),classTypes.toString()));
+
+		//continuar parte de methods.
+		
+		return null;
+		
+	}
+	public LlvmValue visit(ClassDeclExtends n){
+		System.out.format("classdeclextends :)\n");
+		return null;
+		
+	}
+	public LlvmValue visit(VarDecl n){
+		System.out.format("vardecl :)\n");
+		return null;
+		
+	}
+	public LlvmValue visit(MethodDecl n){
+		System.out.format("methoddecl :)\n");
+		return null;
+		
+	}
+	public LlvmValue visit(Formal n){
+		System.out.format("formal :)\n");
+		return null;
+		
+	}
+	public LlvmValue visit(IntArrayType n){
+		System.out.format("intarraytype :)\n");
+		
+		//retorna novo tipo criado... Verificar se da certo haha :P
+		return LlvmPrimitiveType.I32PTR;
+		
+	}
 	//test
 	//Como nao podemos retornar um LlvmType, extendemos LlvmType para LlvmValue
 	public LlvmValue visit(BooleanType n){
@@ -176,8 +254,16 @@ public class Codegen extends VisitorAdapter{
 	public LlvmValue visit(IntegerType n){
 		return LlvmPrimitiveType.I32;
 	}
-	public LlvmValue visit(IdentifierType n){return null;}
-	public LlvmValue visit(Block n){return null;}
+	public LlvmValue visit(IdentifierType n){
+		System.out.format("identifiertype :)\n");
+		return null;
+		
+	}
+	public LlvmValue visit(Block n){
+		System.out.format("block :)\n");
+		return null;
+		
+	}
 	public LlvmValue visit(If n){
 		//pega o registrador referente a condicao do if em cond
 		LlvmValue cond = n.condition.accept(this);
@@ -291,8 +377,16 @@ public class Codegen extends VisitorAdapter{
 			
 		return null;
 	}
-	public LlvmValue visit(Assign n){return null;}
-	public LlvmValue visit(ArrayAssign n){return null;}
+	public LlvmValue visit(Assign n){
+		System.out.format("assign :)\n");
+		return null;
+		
+	}
+	public LlvmValue visit(ArrayAssign n){
+		System.out.format("assign array :)\n");
+		return null;
+		
+	}
 	//test
 	public LlvmValue visit(And n){
 		
@@ -322,7 +416,6 @@ public class Codegen extends VisitorAdapter{
 		LlvmValue v2 = n.rhs.accept(this);
 		LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I1);
 		//utilizando 0 para lessthan
-		System.out.format("acessei o lessthan :)\n");
 		assembler.add(new LlvmIcmp(lhs,0,LlvmPrimitiveType.I1,v1,v2));
 		return lhs;
 	}
@@ -351,9 +444,21 @@ public class Codegen extends VisitorAdapter{
 		assembler.add(new LlvmTimes(lhs,LlvmPrimitiveType.I32,v1,v2));
 		return lhs;  
 	}
-	public LlvmValue visit(ArrayLookup n){return null;}
-	public LlvmValue visit(ArrayLength n){return null;}
-	public LlvmValue visit(Call n){return null;}
+	public LlvmValue visit(ArrayLookup n){
+		System.out.format("arraylookup :)\n");
+		return null;
+		
+	}
+	public LlvmValue visit(ArrayLength n){
+		System.out.format("arraylength :)\n");
+		return null;
+		
+	}
+	public LlvmValue visit(Call n){
+		System.out.format("call :)\n");
+		return null;
+		
+	}
 	//ok
 	public LlvmValue visit(True n){
 		//1 -> true
@@ -364,15 +469,27 @@ public class Codegen extends VisitorAdapter{
 		//0 -> false
 		return new LlvmBool(0);
 	}
-	public LlvmValue visit(IdentifierExp n){return null;}
+	public LlvmValue visit(IdentifierExp n){
+		System.out.format("identifierexp :)\n");
+		return null;
+		
+	}
 	//test
 	public LlvmValue visit(This n){
 		LlvmType thisType = (LlvmType) n.type.accept(this);
 		LlvmRegister thisReg = new LlvmRegister("%this_register", thisType);
 		return thisReg;
 	}
-	public LlvmValue visit(NewArray n){return null;}
-	public LlvmValue visit(NewObject n){return null;}
+	public LlvmValue visit(NewArray n){
+		System.out.format("newarray :)\n");
+		return null;
+		
+	}
+	public LlvmValue visit(NewObject n){
+		System.out.format("newobject :)\n");
+		return null;
+		
+	}
 	//ok
 	public LlvmValue visit(Not n){
 		//ideia era um xor com 1, porque ele inverte o bit. 1 xor 1 = 0 e 1 xor 0 = 1
@@ -384,7 +501,11 @@ public class Codegen extends VisitorAdapter{
         return lhs;
         
 	}
-	public LlvmValue visit(Identifier n){return null;}
+	public LlvmValue visit(Identifier n){
+		System.out.format("identifier :)\n");
+		return null;
+		
+	}
 }
 
 

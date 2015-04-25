@@ -6,6 +6,7 @@ public class LlvmPrimitiveType extends LlvmType{
     public static final LlvmType VOID       = new LlvmPrimitiveType();
     public static final LlvmType LABEL      = new LlvmPrimitiveType();
     public static final LlvmType DOTDOTDOT  = new LlvmPrimitiveType();
+    public static final LlvmType I32PTR		= new LlvmPrimitiveType();
 
     public String toString(){
 	if(this == I1) return "i1";
@@ -14,6 +15,7 @@ public class LlvmPrimitiveType extends LlvmType{
 	if(this == VOID) return "void";
 	if(this == LABEL) return "label";
 	if(this == DOTDOTDOT) return "...";
+	if(this == I32PTR) return "i32 *";
 	return null;
     }
 }
