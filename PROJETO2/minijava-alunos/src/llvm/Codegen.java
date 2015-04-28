@@ -168,21 +168,22 @@ public class Codegen extends VisitorAdapter{
 		
 		int i, j;
 		
-		//criando uma string, onde serao concatenados os tipos das variaveis da classe.
+		//criando uma string, onde sera colocado o assembly referente ao type. (type {...})
 		StringBuilder classTypes = new StringBuilder();
-		
-		//criando uma string, onde serao concatenados os tipos das variaveis da classe.
-		StringBuilder classMethods = new StringBuilder();
 		
 		//criando uma string onde sera colocado o nome da classe
 		StringBuilder className = new StringBuilder();
+		
+		//lista ligada onde serao armazenados os tipos das variaveis
+		List<LlvmType> typeList = new LinkedList<LlvmType>();
 		
 		//%class.name
 		className.append("%class.");
 		className.append(n.name.s);
 		
-		//type { type1, type2, ... }
-		classTypes.append("type { ");				
+		//type { type1, type2, ... } - vamos utilizar LlvmStructure
+		classTypes.append("type ");				
+		
 		if (n.varList != null) {
 			j = n.varList.size();
 			System.out.format("Numero de variaveis: %d\n", j);
@@ -193,17 +194,20 @@ public class Codegen extends VisitorAdapter{
 				
 				System.out.format("%s ", variable_type);
 				
-				//appenda os tipos de variaveis
-				classTypes.append(variable_type);
-				
-				if (i + 1 < j){
-					classTypes.append(", ");
-				}
+				//adiciona os tipos de variaveis
+				typeList.add((LlvmType) variable_type);
 				
 				n.varList = n.varList.tail;
 			}
 		}
-		classTypes.append(" }");
+
+		//Structure onde serao colocados os tipos, formatados pelo LlvmStructure
+		LlvmStructure listaDeTipos = new LlvmStructure(typeList);
+		
+		System.out.format("\nListaDetipos: %s\n", listaDeTipos.toString());
+		
+		//appenda a lista de tipos no classTypes
+		classTypes.append(listaDeTipos.toString());
 		
 		System.out.format("\nclassType final: %s\n", classTypes);
 		
@@ -211,31 +215,189 @@ public class Codegen extends VisitorAdapter{
 		
 		// Adiciona declaracao de classe no assembly
 		assembler.add(new LlvmConstantDeclaration(className.toString(),classTypes.toString()));
-
-		//continuar parte de methods.
+		
+		if(n.methodList != null) {
+			j = n.methodList.size();
+			//itera todos os metodos da classe
+			for (i = 0; i < j; i++) {
+				MethodDecl method = n.methodList.head;
+				
+				System.out.format("method: %s ", method);
+				
+				//passamos pelo visit do method, para gerar o assembly do metodo.
+				visit(method);	
+				
+				n.methodList = n.methodList.tail;
+			}
+		}
 		
 		return null;
 		
 	}
+	
+	//provavelmente nao vamos ter tempo de fazer esse...(espero que tenhamos :D)
 	public LlvmValue visit(ClassDeclExtends n){
 		System.out.format("classdeclextends :)\n");
 		return null;
 		
 	}
+	
+	//declaracao de variavel.
 	public LlvmValue visit(VarDecl n){
 		System.out.format("vardecl :)\n");
-		return null;
+		
+		LlvmType varType = (LlvmType) n.type.accept(this);
+		
+		StringBuilder varDeclaration = new StringBuilder();
+		
+		//criando o nome do endereco onde sera alocada a variavel
+		varDeclaration.append("%");
+		varDeclaration.append(n.name.s);
+		varDeclaration.append("_address");
+		
+		//varType *
+		LlvmPointer varTypePtr = new LlvmPointer(varType);
+		
+		//%name_address
+		LlvmRegister registerVar = new LlvmRegister(varDeclaration.toString(), varTypePtr);
+		
+		//gera o assembly: %name_address = alloca type
+		assembler.add(new LlvmAlloca(registerVar, varType, new LinkedList<LlvmValue>()));
+		
+		return registerVar;
 		
 	}
+	
+	//rv
+	//para as declaracoes de metodos, vamos simplesmente escrever a codificacao no .s
 	public LlvmValue visit(MethodDecl n){
+		
 		System.out.format("methoddecl :)\n");
+		
+		int i,j;
+		
+		LinkedList<LlvmValue> parametros = new LinkedList<LlvmValue>();
+		LlvmType retType = (LlvmType) n.returnType.accept(this);
+		StringBuilder declString = new StringBuilder();
+		
+		System.out.format("body.head: %s\n",n.body.head);
+		System.out.format("formals: %s\n",n.formals.head);
+		System.out.format("locals: %s\n",n.locals.head);
+		System.out.format("name: %s\n",n.name);
+		System.out.format("return type: %s\n",n.returnType);
+		System.out.format("return exp: %s\n",n.returnExp);
+		
+		//preenchendo a lista de parametros do metodo
+		if(n.formals != null) {
+			j = n.formals.size();
+			System.out.format("formals size: %d\n", j);
+			
+			//itera todos os parametros do metodo
+			for (i = 0; i < j; i++) {
+				
+				LlvmValue param = n.formals.head.accept(this);
+				
+				System.out.format("formals: %s \n", n.formals.head);
+				parametros.add(param);
+				n.formals = n.formals.tail;
+				
+			}
+		}
+		
+		declString.append("@__");
+		declString.append(n.name);
+		
+		System.out.format("declString: %s\n",declString);
+		System.out.format("retType: %s\n",retType);
+		
+		// Adiciona define de classe no assembly
+		assembler.add(new LlvmDefine(declString.toString(), retType, parametros));
+		
+		//Apos o define, devemos comecar a implementacao do metodo...
+		
+		//copiando da main... Criando entrypoint
+		assembler.add(new LlvmLabel(new LlvmLabelValue("entryMethod")));
+		
+		j = parametros.size();
+		
+		//alocando memoria para todos os parametros
+		for(i = 0; i < j ; i++){
+			
+			LlvmValue parametro_atual = parametros.get(i);
+			
+			System.out.format("parametro_atual: %s\n",parametro_atual);
+			
+			//cria ponteiro para o tipo, que sera utilizado como endereco de alocacao.
+			LlvmPointer pointer_type = new LlvmPointer(parametro_atual.type);
+			
+			StringBuilder addr_name = new StringBuilder();
+			
+			addr_name.append(parametro_atual);
+			addr_name.append("_address");
+			
+			//%name_address
+			LlvmValue addr = new LlvmNamedValue(addr_name.toString(), pointer_type);
+			
+			//aloca memoria para endereco
+			assembler.add(new LlvmAlloca(addr, parametro_atual.type, new LinkedList<LlvmValue>()));
+			
+			//armazena valor no endereco apontado por addr
+			assembler.add(new LlvmStore(parametro_atual,addr));
+		}
+		
+		System.out.format("locals size: %s\n",n.locals.size());
+		
+		//itera todos os locals
+		
+		j = n.locals.size();
+		for(i=0;i<j;i++){
+			
+			//chama varDecl para cada variavel local
+			n.locals.head.accept(this);
+			
+			System.out.format("locals****: %s \n", n.locals.head);
+			
+			n.locals = n.locals.tail;
+			
+		}
+		
+		//itera nos statements do metodo
+		
+		j = n.body.size();
+		for(i=0;i<j;i++){
+					
+			//gera codigo para cada stmt seguinte.
+			n.body.head.accept(this);
+					
+			System.out.format("body****: %s \n", n.body.head);
+					
+			n.body = n.body.tail;
+					
+		}
+
+		//retorno...
+		assembler.add(new LlvmRet(n.returnExp.accept(this)));
+		
+		//}
+		assembler.add(new LlvmCloseDefinition());
+		
 		return null;
 		
 	}
+	
+	//variavel de parametro...
 	public LlvmValue visit(Formal n){
 		System.out.format("formal :)\n");
-		return null;
 		
+		StringBuilder name = new StringBuilder();
+		
+		name.append("%");
+		name.append(n.name.s);
+		
+		//variable -> %name, com tipo n.type
+		LlvmNamedValue variable = new LlvmNamedValue(name.toString(), (LlvmType)n.type.accept(this));
+		
+		return variable;		
 	}
 	public LlvmValue visit(IntArrayType n){
 		System.out.format("intarraytype :)\n");
@@ -304,6 +466,8 @@ public class Codegen extends VisitorAdapter{
 			//gera o codigo contido na elseClause
 			n.elseClause.accept(this);
 			
+			assembler.add(new LlvmBranch(brBreak));
+			
 		} else if(n.elseClause!=null && n.thenClause==null){
 			//faz o branch condicional, pulando para label brBreak se a cond retornar 1, e para brFalse se retornar 0
 			assembler.add(new LlvmBranch(cond, brBreak, brFalse));
@@ -317,6 +481,7 @@ public class Codegen extends VisitorAdapter{
 			//gera o codigo contido na elseClause
 			n.elseClause.accept(this);
 			
+			assembler.add(new LlvmBranch(brBreak));
 		} else {
 			//faz o branch condicional, pulando para label brTrue se a cond retornar 1, e para brBreak se retornar 0
 			assembler.add(new LlvmBranch(cond, brTrue, brBreak));
@@ -377,17 +542,46 @@ public class Codegen extends VisitorAdapter{
 			
 		return null;
 	}
+	
+	//nesta chamada, devemos pegar o address da variavel e dar um store no valor do assign nesse endereco
 	public LlvmValue visit(Assign n){
+		
 		System.out.format("assign :)\n");
-		return null;
+		
+		LlvmValue var = n.var.accept(this);
+		StringBuilder address = new StringBuilder();
+		
+		System.out.format("var_name: %s\n",var);
+		System.out.format("n.var: %s\n",n.var);
+		System.out.format("n string: %s\n", n.toString());
+		
+		address.append("%");
+		address.append(var.toString());
+		address.append("_address");
+		
+		LlvmType var_type = var.type;
+		
+		//%name_address
+		LlvmValue pointer = new LlvmNamedValue(address.toString(), new LlvmPointer(var_type));
+		
+		//valor que vai ser armazenado no endereco apontado pela variavel
+		LlvmValue value_to_store = n.exp.accept(this);
+		
+		System.out.format("n.exp: %s\n",n.exp);
+		
+		//gera assembly referente ao store: store type %reg, type * %address;
+		assembler.add(new LlvmStore(value_to_store, pointer));
+		
+		return value_to_store;
 		
 	}
+	
+	//ToDo
 	public LlvmValue visit(ArrayAssign n){
 		System.out.format("assign array :)\n");
 		return null;
-		
 	}
-	//test
+
 	public LlvmValue visit(And n){
 		
 		LlvmValue v1 = n.lhs.accept(this);
@@ -410,13 +604,17 @@ public class Codegen extends VisitorAdapter{
 		//retorna o registrador contendo o resultado
 		return lhs;
 	}
-	//test
+
 	public LlvmValue visit(LessThan n){
 		LlvmValue v1 = n.lhs.accept(this);
 		LlvmValue v2 = n.rhs.accept(this);
 		LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I1);
 		//utilizando 0 para lessthan
-		assembler.add(new LlvmIcmp(lhs,0,LlvmPrimitiveType.I1,v1,v2));
+		
+		System.out.format("less than: lhs e rhs: %s %s\n",n.lhs,n.rhs);
+		
+		//comparamos dois elementos i32, e retornamos um bool.
+		assembler.add(new LlvmIcmp(lhs,0,v1.type,v1,v2));
 		return lhs;
 	}
 	//ok
@@ -425,7 +623,7 @@ public class Codegen extends VisitorAdapter{
 		LlvmValue v2 = n.rhs.accept(this);
 		LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I1);
 		//utilizando 1 para equal
-		assembler.add(new LlvmIcmp(lhs,1,LlvmPrimitiveType.I1,v1,v2));
+		assembler.add(new LlvmIcmp(lhs,1,v1.type,v1,v2));
 		return lhs;
 	}
 	//ok
@@ -455,8 +653,48 @@ public class Codegen extends VisitorAdapter{
 		
 	}
 	public LlvmValue visit(Call n){
+		
 		System.out.format("call :)\n");
-		return null;
+
+		LlvmType type = (LlvmType) n.type.accept(this);
+		
+		LlvmRegister register = new LlvmRegister(type);
+		
+		System.out.format("type:%s\n", n.type);
+		
+		
+		//lista dos tipos dos parametros da funcao sendo chamada
+		List<LlvmType> types_list = new ArrayList<LlvmType>();
+		
+		//lista dos parametros da funcao sendo chamada
+		List<LlvmValue> parametros_func = new ArrayList<LlvmValue>();
+		
+		int i, j; 
+		
+		j = n.actuals.size();
+		//iterando todos os parametros
+		for(i = 0; i < j; i++){
+			
+			//tipo do parametro atual
+			LlvmType aux =(LlvmType) n.actuals.head.type.accept(this);
+			
+			//parametro atual
+			LlvmValue aux2 = n.actuals.head.accept(this);
+			
+			System.out.format("actuals:%s\n", n.actuals.head);
+			
+			System.out.format("actuals type:%s\n", n.actuals.head.type);
+			
+			//incrementando as duas listas
+			types_list.add(aux);
+			parametros_func.add(aux2);
+			n.actuals = n.actuals.tail;
+		}
+		
+		//gerando o assembly do call da funcao, alterando o nome dela para "@__"+nome, pois esse eh o padrao dos metodos que estamos utilizando.
+		assembler.add(new LlvmCall(register,type,types_list,"@__"+n.method.s,parametros_func));
+		
+		return register;
 		
 	}
 	//ok
@@ -469,15 +707,38 @@ public class Codegen extends VisitorAdapter{
 		//0 -> false
 		return new LlvmBool(0);
 	}
+	
+	//comentar melhor dps
 	public LlvmValue visit(IdentifierExp n){
 		System.out.format("identifierexp :)\n");
-		return null;
+		
+		System.out.format("n.type: %s\n",n.type);
+		System.out.format("n.name: %s\n",n.name);
+		System.out.format("n.string: %s\n",n.toString());
+		
+		
+		//aloca registrador para retorno
+		LlvmRegister res = new LlvmRegister((LlvmType)n.type.accept(this));
+		
+		//pega tipo do identificador
+		LlvmPrimitiveType identifier_type = (LlvmPrimitiveType) n.type.accept(this);
+		
+		// type *
+		LlvmPointer pointer_to_type = new LlvmPointer (identifier_type);
+		
+		//%name_address *
+		LlvmNamedValue name = new LlvmNamedValue("%" + n.name.s + "_address",pointer_to_type);
+		
+		//res = load type * %name_address
+		assembler.add(new LlvmLoad(res, name));
+		
+		return res;
 		
 	}
 	//test
 	public LlvmValue visit(This n){
 		LlvmType thisType = (LlvmType) n.type.accept(this);
-		LlvmRegister thisReg = new LlvmRegister("%this_register", thisType);
+		LlvmRegister thisReg = new LlvmRegister("%this", thisType);
 		return thisReg;
 	}
 	public LlvmValue visit(NewArray n){
@@ -487,11 +748,13 @@ public class Codegen extends VisitorAdapter{
 	}
 	public LlvmValue visit(NewObject n){
 		System.out.format("newobject :)\n");
+		
 		return null;
 		
 	}
 	//ok
 	public LlvmValue visit(Not n){
+		
 		//ideia era um xor com 1, porque ele inverte o bit. 1 xor 1 = 0 e 1 xor 0 = 1
 		//Para nao implementar xor usou-se o Icmp com equal e 0 (primeiro termo fixo), 
 		//pois 0 == 0 é true (1) e 0 == 1 é false, ou seja, 0.
@@ -503,7 +766,11 @@ public class Codegen extends VisitorAdapter{
 	}
 	public LlvmValue visit(Identifier n){
 		System.out.format("identifier :)\n");
-		return null;
+
+		//TODO: descobrir como pegar o tipo do identifier
+		LlvmNamedValue identifier = new LlvmNamedValue(n.s, LlvmPrimitiveType.I32);
+		
+		return identifier;
 		
 	}
 }
