@@ -281,7 +281,6 @@ public class Codegen extends VisitorAdapter{
 		StringBuilder declString = new StringBuilder();
 		
 		System.out.format("body.head: %s\n",n.body.head);
-		System.out.format("formals: %s\n",n.formals.head);
 		System.out.format("locals: %s\n",n.locals.head);
 		System.out.format("name: %s\n",n.name);
 		System.out.format("return type: %s\n",n.returnType);
@@ -289,6 +288,7 @@ public class Codegen extends VisitorAdapter{
 		
 		//preenchendo a lista de parametros do metodo
 		if(n.formals != null) {
+			System.out.format("formals: %s\n",n.formals.head);
 			j = n.formals.size();
 			System.out.format("formals size: %d\n", j);
 			
@@ -365,11 +365,13 @@ public class Codegen extends VisitorAdapter{
 		
 		j = n.body.size();
 		for(i=0;i<j;i++){
-					
+				
+			System.out.format("body****: %s \n", n.body.head);
+			
 			//gera codigo para cada stmt seguinte.
 			n.body.head.accept(this);
 					
-			System.out.format("body****: %s \n", n.body.head);
+			
 					
 			n.body = n.body.tail;
 					
@@ -552,7 +554,7 @@ public class Codegen extends VisitorAdapter{
 		StringBuilder address = new StringBuilder();
 		
 		System.out.format("var_name: %s\n",var);
-		System.out.format("n.var: %s\n",n.var);
+		//System.out.format("n.var: %s\n",n.var);
 		System.out.format("n string: %s\n", n.toString());
 		
 		address.append("%");
@@ -662,7 +664,6 @@ public class Codegen extends VisitorAdapter{
 		
 		System.out.format("type:%s\n", n.type);
 		
-		
 		//lista dos tipos dos parametros da funcao sendo chamada
 		List<LlvmType> types_list = new ArrayList<LlvmType>();
 		
@@ -671,25 +672,34 @@ public class Codegen extends VisitorAdapter{
 		
 		int i, j; 
 		
-		j = n.actuals.size();
-		//iterando todos os parametros
-		for(i = 0; i < j; i++){
+		if(n.actuals != null){
 			
-			//tipo do parametro atual
-			LlvmType aux =(LlvmType) n.actuals.head.type.accept(this);
+			System.out.format("size actuals:%s\n", n.actuals.size());
 			
-			//parametro atual
-			LlvmValue aux2 = n.actuals.head.accept(this);
+			j = n.actuals.size();
 			
-			System.out.format("actuals:%s\n", n.actuals.head);
-			
-			System.out.format("actuals type:%s\n", n.actuals.head.type);
-			
-			//incrementando as duas listas
-			types_list.add(aux);
-			parametros_func.add(aux2);
-			n.actuals = n.actuals.tail;
+			//iterando todos os parametros
+			for(i = 0; i < j; i++){
+				
+				//tipo do parametro atual
+				LlvmType aux =(LlvmType) n.actuals.head.type.accept(this);
+				
+				//parametro atual
+				LlvmValue aux2 = n.actuals.head.accept(this);
+				
+				System.out.format("actuals:%s\n", n.actuals.head);
+				
+				System.out.format("actuals type:%s\n", n.actuals.head.type);
+				
+				//incrementando as duas listas
+				types_list.add(aux);
+				parametros_func.add(aux2);
+				n.actuals = n.actuals.tail;
+			}
+		
 		}
+		
+		System.out.format("@call n.method.s:%s\n", n.method.s);
 		
 		//gerando o assembly do call da funcao, alterando o nome dela para "@__"+nome, pois esse eh o padrao dos metodos que estamos utilizando.
 		assembler.add(new LlvmCall(register,type,types_list,"@__"+n.method.s,parametros_func));
@@ -708,7 +718,6 @@ public class Codegen extends VisitorAdapter{
 		return new LlvmBool(0);
 	}
 	
-	//comentar melhor dps
 	public LlvmValue visit(IdentifierExp n){
 		System.out.format("identifierexp :)\n");
 		
@@ -737,8 +746,12 @@ public class Codegen extends VisitorAdapter{
 	}
 	//test
 	public LlvmValue visit(This n){
+		
+		System.out.format("This******** :)\n");
+		
 		LlvmType thisType = (LlvmType) n.type.accept(this);
 		LlvmRegister thisReg = new LlvmRegister("%this", thisType);
+		
 		return thisReg;
 	}
 	public LlvmValue visit(NewArray n){
