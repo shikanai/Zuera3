@@ -371,8 +371,6 @@ public class Codegen extends VisitorAdapter{
 			//gera codigo para cada stmt seguinte.
 			n.body.head.accept(this);
 					
-			
-					
 			n.body = n.body.tail;
 					
 		}
@@ -423,8 +421,31 @@ public class Codegen extends VisitorAdapter{
 		return null;
 		
 	}
+	
+	//na implementacao do block ,simplesmente iteramos o body inteiro do block
 	public LlvmValue visit(Block n){
 		System.out.format("block :)\n");
+		
+		//verifica se existe algum elemento no block
+		if(n.body != null){
+			int i,j;
+			
+			j = n.body.size();
+			
+			//itera em todos os elementos
+			for(i=0;i<j;i++){
+			
+				System.out.format("@block body: %s\n", n.body.head);
+				
+				//gera codigo de cada parte do block
+				n.body.head.accept(this);
+						
+				n.body = n.body.tail;
+				
+				
+			}
+		}
+		
 		return null;
 		
 	}
@@ -644,6 +665,7 @@ public class Codegen extends VisitorAdapter{
 		assembler.add(new LlvmTimes(lhs,LlvmPrimitiveType.I32,v1,v2));
 		return lhs;  
 	}
+	
 	public LlvmValue visit(ArrayLookup n){
 		System.out.format("arraylookup :)\n");
 		return null;
