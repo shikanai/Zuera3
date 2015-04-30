@@ -164,7 +164,7 @@ public class Codegen extends VisitorAdapter{
 		
 		//seguindo o padrao do slide 21/47 parte 1 llvm...
 		
-		System.out.format("classdeclsimple :)\n");
+		System.out.format("classdeclsimple*********************\n");
 		
 		int i, j;
 		
@@ -187,12 +187,11 @@ public class Codegen extends VisitorAdapter{
 		if (n.varList != null) {
 			j = n.varList.size();
 			System.out.format("Numero de variaveis: %d\n", j);
-			System.out.format("tipos das variaveis:\n");
 			for (i = 0; i < j; i++){
 				//itera a lista de variaveis para pegar todos os tipos e appendar em classTypes.
 				LlvmValue variable_type = n.varList.head.type.accept(this);
 				
-				System.out.format("%s ", variable_type);
+				System.out.format("tipos das variaveis:%s \n", variable_type);
 				
 				//adiciona os tipos de variaveis
 				typeList.add((LlvmType) variable_type);
@@ -204,11 +203,24 @@ public class Codegen extends VisitorAdapter{
 		//Structure onde serao colocados os tipos, formatados pelo LlvmStructure
 		LlvmStructure listaDeTipos = new LlvmStructure(typeList);
 		
-		System.out.format("\nListaDetipos: %s\n", listaDeTipos.toString());
+		//System.out.format("\nListaDetipos: %s\n", listaDeTipos.toString());
 		
-		//appenda a lista de tipos no classTypes
-		classTypes.append(listaDeTipos.toString());
+		if(listaDeTipos.toString().compareTo("{ null }")==0){
+			
+			System.out.format("listaDeTipos nula\n");
+			
+			//appenda a lista de tipos no classTypes
+			classTypes.append("{ }");
+			
+		}
+		else{
 		
+			System.out.format("listaDeTipos nao nula\n");
+			
+			//appenda a lista de tipos no classTypes
+			classTypes.append(listaDeTipos.toString());
+			
+		}
 		System.out.format("\nclassType final: %s\n", classTypes);
 		
 		System.out.format("className: %s\n",className);
@@ -222,10 +234,12 @@ public class Codegen extends VisitorAdapter{
 			for (i = 0; i < j; i++) {
 				MethodDecl method = n.methodList.head;
 				
-				System.out.format("method: %s ", method);
+				System.out.format("@class - method: %s ", method);
 				
 				//passamos pelo visit do method, para gerar o assembly do metodo.
-				visit(method);	
+				//visit(method);	
+				
+				method.accept(this);
 				
 				n.methodList = n.methodList.tail;
 			}
@@ -237,14 +251,14 @@ public class Codegen extends VisitorAdapter{
 	
 	//provavelmente nao vamos ter tempo de fazer esse...(espero que tenhamos :D)
 	public LlvmValue visit(ClassDeclExtends n){
-		System.out.format("classdeclextends :)\n");
+		System.out.format("classdeclextends*********************\n");
 		return null;
 		
 	}
 	
 	//declaracao de variavel.
 	public LlvmValue visit(VarDecl n){
-		System.out.format("vardecl :)\n");
+		System.out.format("vardecl*********************\n");
 		
 		LlvmType varType = (LlvmType) n.type.accept(this);
 		
@@ -254,6 +268,8 @@ public class Codegen extends VisitorAdapter{
 		varDeclaration.append("%");
 		varDeclaration.append(n.name.s);
 		varDeclaration.append("_address");
+		
+		System.out.format("var addr name: %s\n",varDeclaration.toString());
 		
 		//varType *
 		LlvmPointer varTypePtr = new LlvmPointer(varType);
@@ -272,7 +288,7 @@ public class Codegen extends VisitorAdapter{
 	//para as declaracoes de metodos, vamos simplesmente escrever a codificacao no .s
 	public LlvmValue visit(MethodDecl n){
 		
-		System.out.format("methoddecl :)\n");
+		System.out.format("methoddecl*********************\n");
 		
 		int i,j;
 		
@@ -280,8 +296,12 @@ public class Codegen extends VisitorAdapter{
 		LlvmType retType = (LlvmType) n.returnType.accept(this);
 		StringBuilder declString = new StringBuilder();
 		
-		System.out.format("body.head: %s\n",n.body.head);
-		System.out.format("locals: %s\n",n.locals.head);
+		if(n.body!=null){
+			System.out.format("body.head: %s\n",n.body.head);
+		}
+		if(n.locals!=null){
+			System.out.format("locals: %s\n",n.locals.head);
+		}
 		System.out.format("name: %s\n",n.name);
 		System.out.format("return type: %s\n",n.returnType);
 		System.out.format("return exp: %s\n",n.returnExp);
@@ -345,34 +365,39 @@ public class Codegen extends VisitorAdapter{
 			assembler.add(new LlvmStore(parametro_atual,addr));
 		}
 		
-		System.out.format("locals size: %s\n",n.locals.size());
+		
 		
 		//itera todos os locals
 		
-		j = n.locals.size();
-		for(i=0;i<j;i++){
-			
-			//chama varDecl para cada variavel local
-			n.locals.head.accept(this);
-			
-			System.out.format("locals****: %s \n", n.locals.head);
-			
-			n.locals = n.locals.tail;
-			
+		if(n.locals!=null){
+			System.out.format("locals size: %s\n",n.locals.size());
+			j = n.locals.size();
+			for(i=0;i<j;i++){
+				
+				//chama varDecl para cada variavel local
+				n.locals.head.accept(this);
+				
+				System.out.format("locals****: %s \n", n.locals.head);
+				
+				n.locals = n.locals.tail;
+				
+			}
 		}
 		
 		//itera nos statements do metodo
 		
-		j = n.body.size();
-		for(i=0;i<j;i++){
+		if(n.body!=null){
+			j = n.body.size();
+			for(i=0;i<j;i++){
+					
+				System.out.format("body****: %s \n", n.body.head);
 				
-			System.out.format("body****: %s \n", n.body.head);
-			
-			//gera codigo para cada stmt seguinte.
-			n.body.head.accept(this);
-					
-			n.body = n.body.tail;
-					
+				//gera codigo para cada stmt seguinte.
+				n.body.head.accept(this);
+						
+				n.body = n.body.tail;
+						
+			}
 		}
 
 		//retorno...
@@ -416,10 +441,29 @@ public class Codegen extends VisitorAdapter{
 	public LlvmValue visit(IntegerType n){
 		return LlvmPrimitiveType.I32;
 	}
+	
+	//de forma alguma consegui pensar em como fazer isso sem adicionar uma nova classe
+	//entao criei o LlvmClassInfo
+	
 	public LlvmValue visit(IdentifierType n){
 		System.out.format("identifiertype :)\n");
-		return null;
 		
+		//%class.name
+		StringBuilder name = new StringBuilder();
+		
+		//name.append("%class.");
+		name.append(n.name);
+		
+		System.out.format("name: %s\n",name.toString());
+		
+		//cria classType
+		LlvmClassInfo classType = new LlvmClassInfo(name.toString());
+		
+		//%class.name *
+		LlvmPointer classTypePtr = new LlvmPointer(classType);
+		
+		return classTypePtr;		
+
 	}
 	
 	//na implementacao do block ,simplesmente iteramos o body inteiro do block
@@ -570,7 +614,7 @@ public class Codegen extends VisitorAdapter{
 	public LlvmValue visit(Assign n){
 		
 		System.out.format("assign :)\n");
-		
+
 		LlvmValue var = n.var.accept(this);
 		StringBuilder address = new StringBuilder();
 		
@@ -584,6 +628,8 @@ public class Codegen extends VisitorAdapter{
 		
 		LlvmType var_type = var.type;
 		
+		System.out.format("var_type: %s\n",var.type);
+		
 		//%name_address
 		LlvmValue pointer = new LlvmNamedValue(address.toString(), new LlvmPointer(var_type));
 		
@@ -595,7 +641,8 @@ public class Codegen extends VisitorAdapter{
 		//gera assembly referente ao store: store type %reg, type * %address;
 		assembler.add(new LlvmStore(value_to_store, pointer));
 		
-		return value_to_store;
+		//return value_to_store;
+		return null;
 		
 	}
 	
@@ -784,7 +831,19 @@ public class Codegen extends VisitorAdapter{
 	public LlvmValue visit(NewObject n){
 		System.out.format("newobject :)\n");
 		
-		return null;
+		System.out.format("n.type:%s :)\n",n.type);
+			
+		LlvmType type = ((LlvmPointer)n.type.accept(this)).content;
+		
+		
+		System.out.format("n.type | n.type.content: %s %s :)\n",n.type,type);
+
+		
+		LlvmRegister res = new LlvmRegister(new LlvmPointer(type));
+		
+		assembler.add(new LlvmMalloc(res, type, type.toString()));
+		
+		return res;
 		
 	}
 	//ok
@@ -802,7 +861,10 @@ public class Codegen extends VisitorAdapter{
 	public LlvmValue visit(Identifier n){
 		System.out.format("identifier :)\n");
 
+		System.out.format("********identifier: %s |\n",n);
+		
 		//TODO: descobrir como pegar o tipo do identifier
+		//Muito importante, corrigir!!
 		LlvmNamedValue identifier = new LlvmNamedValue(n.s, LlvmPrimitiveType.I32);
 		
 		return identifier;
