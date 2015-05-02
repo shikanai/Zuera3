@@ -738,8 +738,10 @@ public class Codegen extends VisitorAdapter{
 		
 	}
 	public LlvmValue visit(ArrayLength n){
+		LlvmValue tamanho = n.array.accept(this);
 		System.out.format("arraylength :)\n");
-		return null;
+		//System.out.format("arraylength %d:)\n", Integer.parseInt(tamanho.toString()));
+		return tamanho;
 		
 	}
 	public LlvmValue visit(Call n){
@@ -862,8 +864,18 @@ public class Codegen extends VisitorAdapter{
 		}
 	}
 	public LlvmValue visit(NewArray n){
+	
+		LlvmValue tamanho = n.size.accept(this);
+		LlvmType tipo_array = tamanho.type;
+		int tamanho_int = Integer.parseInt(tamanho.toString());
+
+		LlvmPointer tipo_ptr = new LlvmPointer(new LlvmArray(tamanho_int, tipo_array));
+		LlvmRegister registrador = new LlvmRegister(tipo_ptr);
+		assembler.add(new LlvmAlloca(registrador, new LlvmArray(tamanho_int, tipo_array), new LinkedList<LlvmValue>()));
+		
+		
 		System.out.format("newarray :)\n");
-		return null;
+		return registrador;
 		
 	}
 	public LlvmValue visit(NewObject n){
