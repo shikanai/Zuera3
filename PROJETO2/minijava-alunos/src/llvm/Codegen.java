@@ -195,9 +195,15 @@ public class Codegen extends VisitorAdapter{
 				
 				System.out.format("tipos das variaveis:%s \n", variable_type);
 				
-				//adiciona os tipos de variaveis
-				typeList.add((LlvmType) variable_type);
-				
+				if(variable_type.toString().contains("%class")){
+					System.out.format("eh uma classe. alterando para pointer...\n");
+					LlvmPointer ptr_class = new LlvmPointer((LlvmType) variable_type);
+					typeList.add(ptr_class);
+					
+				}else{
+					//adiciona os tipos de variaveis
+					typeList.add((LlvmType) variable_type);
+				}
 				n.varList = n.varList.tail;
 			}
 		}
@@ -332,9 +338,14 @@ public class Codegen extends VisitorAdapter{
 		System.out.format("declString: %s\n",declString);
 		System.out.format("retType: %s\n",retType);
 		
-		// Adiciona define de classe no assembly
-		assembler.add(new LlvmDefine(declString.toString(), retType, parametros));
-		
+		if(retType.toString().contains("%class")){
+			LlvmPointer ptr_retType = new LlvmPointer(retType);
+			// Adiciona define de classe no assembly
+			assembler.add(new LlvmDefine(declString.toString(), ptr_retType, parametros));
+		}else{
+			// Adiciona define de classe no assembly
+			assembler.add(new LlvmDefine(declString.toString(), retType, parametros));
+		}
 		//Apos o define, devemos comecar a implementacao do metodo...
 		
 		//copiando da main... Criando entrypoint
@@ -826,11 +837,29 @@ public class Codegen extends VisitorAdapter{
 		
 		System.out.format("This******** :)\n");
 		
-		//NAO FUNCIONA AINDA!!
-		LlvmType thisType = (LlvmType) n.type.accept(this);
-		LlvmRegister thisReg = new LlvmRegister("%this", thisType);
+		LlvmPointer classeAtual = null;
 		
-		return thisReg;
+		LlvmPointer retorno = null;
+		
+		if(ClassInfo!=null){
+			//%class *
+			classeAtual = new LlvmPointer(ClassInfo);
+			LlvmRegister regClasseAtual = new LlvmRegister("%this",classeAtual);
+			//%class **
+			LlvmPointer ptr_classeAtual = new LlvmPointer(classeAtual);
+			LlvmRegister classe_aloc = new LlvmRegister("%this_address",ptr_classeAtual);
+			
+			
+			assembler.add(new LlvmAlloca(classe_aloc,classeAtual, new LinkedList<LlvmValue>()));
+			
+			//assembler.add(new LlvmLoad(regClasseAtual, this_var));
+			assembler.add(new LlvmLoad(regClasseAtual, classe_aloc));
+			
+			return regClasseAtual;
+			
+		}else{
+			return null;
+		}
 	}
 	public LlvmValue visit(NewArray n){
 		System.out.format("newarray :)\n");
