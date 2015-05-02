@@ -48,7 +48,9 @@ public class Codegen extends VisitorAdapter{
   	private SymTab symTab;
 	private ClassNode classEnv; 	// Aponta para a classe atualmente em uso em symTab
 	private MethodNode methodEnv; 	// Aponta para a metodo atualmente em uso em symTab
-
+	
+	LlvmClassInfo ClassInfo;
+	
 	public static int counter_label = 0;
 
 	public Codegen(){
@@ -459,11 +461,18 @@ public class Codegen extends VisitorAdapter{
 		//cria classType
 		LlvmClassInfo classType = new LlvmClassInfo(name.toString());
 		
-		//%class.name *
-		LlvmPointer classTypePtr = new LlvmPointer(classType);
+		//Armazena o identifiertype na variavel global (relativa a classe)
+		ClassInfo = new LlvmClassInfo(name.toString());
 		
-		return classTypePtr;		
+		System.out.format("***ClassInfo: %s\n",ClassInfo.toString());
+		
+		//%class.name *
+		//LlvmPointer classTypePtr = new LlvmPointer(classType);
+		
+		//return classTypePtr;		
 
+		return classType;
+		
 	}
 	
 	//na implementacao do block ,simplesmente iteramos o body inteiro do block
@@ -614,7 +623,11 @@ public class Codegen extends VisitorAdapter{
 	public LlvmValue visit(Assign n){
 		
 		System.out.format("assign :)\n");
-
+		//valor que vai ser armazenado no endereco apontado pela variavel
+		LlvmValue value_to_store = n.exp.accept(this);
+				
+		System.out.format("n.exp: %s\n",n.exp);
+				
 		LlvmValue var = n.var.accept(this);
 		StringBuilder address = new StringBuilder();
 		
@@ -632,11 +645,6 @@ public class Codegen extends VisitorAdapter{
 		
 		//%name_address
 		LlvmValue pointer = new LlvmNamedValue(address.toString(), new LlvmPointer(var_type));
-		
-		//valor que vai ser armazenado no endereco apontado pela variavel
-		LlvmValue value_to_store = n.exp.accept(this);
-		
-		System.out.format("n.exp: %s\n",n.exp);
 		
 		//gera assembly referente ao store: store type %reg, type * %address;
 		assembler.add(new LlvmStore(value_to_store, pointer));
@@ -818,6 +826,7 @@ public class Codegen extends VisitorAdapter{
 		
 		System.out.format("This******** :)\n");
 		
+		//NAO FUNCIONA AINDA!!
 		LlvmType thisType = (LlvmType) n.type.accept(this);
 		LlvmRegister thisReg = new LlvmRegister("%this", thisType);
 		
@@ -832,14 +841,27 @@ public class Codegen extends VisitorAdapter{
 		System.out.format("newobject :)\n");
 		
 		System.out.format("n.type:%s :)\n",n.type);
-			
-		LlvmType type = ((LlvmPointer)n.type.accept(this)).content;
+		System.out.format("*****n:%s %s\n:)\n",n, n.className);
+		StringBuilder address_str = new StringBuilder();
 		
+		//LlvmType type = ((LlvmPointer)n.type.accept(this)).content;
+		LlvmType type = (LlvmType) (n.type.accept(this));
 		
 		System.out.format("n.type | n.type.content: %s %s :)\n",n.type,type);
-
 		
 		LlvmRegister res = new LlvmRegister(new LlvmPointer(type));
+		
+		address_str.append("%");
+		
+		address_str.append(n.className.toString());
+		
+		address_str.append("_address");
+		
+		//%class *
+		LlvmRegister address = new LlvmRegister(address_str.toString(),new LlvmPointer(type));
+		
+		//gera o assembly: %name_address = alloca type
+		assembler.add(new LlvmAlloca(address,new LlvmPointer(type), new LinkedList<LlvmValue>()));
 		
 		assembler.add(new LlvmMalloc(res, type, type.toString()));
 		
@@ -865,7 +887,16 @@ public class Codegen extends VisitorAdapter{
 		
 		//TODO: descobrir como pegar o tipo do identifier
 		//Muito importante, corrigir!!
-		LlvmNamedValue identifier = new LlvmNamedValue(n.s, LlvmPrimitiveType.I32);
+		
+		LlvmNamedValue identifier;
+		
+		if(ClassInfo == null){
+			System.out.format("********Armazenando I32\n",n);
+			identifier = new LlvmNamedValue(n.s, LlvmPrimitiveType.I32);
+		}else{
+			System.out.format("********Armazenando ClassInfo %s\n",ClassInfo.toString());
+			identifier = new LlvmNamedValue(n.s, ClassInfo);
+		}
 		
 		return identifier;
 		
@@ -909,6 +940,11 @@ public LlvmValue visit(ClassDeclSimple n){
 	List<LlvmValue> varList = null;
 	// Constroi VarList com as Variáveis da Classe
 
+	//for (util.List<VarDecl> var = n.varList; var != null; var = var.tail){
+	//	varList.add(var.head.);
+	//}
+	
+	
 	classes.put(n.name.s, new ClassNode(n.name.s, 
 										new LlvmStructure(typeList), 
 										varList)
@@ -918,7 +954,11 @@ public LlvmValue visit(ClassDeclSimple n){
 }
 
 	public LlvmValue visit(ClassDeclExtends n){return null;}
-	public LlvmValue visit(VarDecl n){return null;}
+	public LlvmValue visit(VarDecl n){
+		
+		return null;
+		
+	}
 	public LlvmValue visit(Formal n){return null;}
 	public LlvmValue visit(MethodDecl n){return null;}
 	public LlvmValue visit(IdentifierType n){return null;}
