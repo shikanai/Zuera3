@@ -668,6 +668,7 @@ public class Codegen extends VisitorAdapter{
 	public LlvmValue visit(Assign n){
 		
 		System.out.format("assign :)\n");
+		/*
 		//valor que vai ser armazenado no endereco apontado pela variavel
 		LlvmValue value_to_store = n.exp.accept(this);
 				
@@ -696,7 +697,10 @@ public class Codegen extends VisitorAdapter{
 		
 		//return value_to_store;
 		return null;
+		*/
 		
+		assembler.add(new LlvmStore(n.exp.accept(this), n.var.accept(this)));
+		return null;
 	}
 	
 	//ToDo
@@ -912,10 +916,11 @@ public class Codegen extends VisitorAdapter{
 		System.out.format("newarray :)\n");
 		
 		LlvmValue tamanho = n.size.accept(this);
+		//Como nos testes nao utilizamos array de outros tipos, fica assim por hora...
 		LlvmType tipo_array = tamanho.type;
 		int tamanho_int = Integer.parseInt(tamanho.toString());
 
-		System.out.format("***Tamanho, tamanho_int, tipo, etc: %s %d %s %s:)\n",tamanho,tamanho_int,n.type,n.toString());
+		System.out.format("***Tamanho, tamanho_int, tipo, etc: %s %s %d %s %s:)\n",tamanho,tipo_array,tamanho_int,n.type,n.toString());
 		
 		// [10 x i32] *
 		LlvmPointer tipo_ptr = new LlvmPointer(new LlvmArray(tamanho_int, tipo_array));
@@ -981,6 +986,7 @@ public class Codegen extends VisitorAdapter{
 		
 		LlvmNamedValue identifier = null;
 		int index;
+		int i;
 		LlvmValue identified;
 		boolean aux;
 		
@@ -996,7 +1002,7 @@ public class Codegen extends VisitorAdapter{
 				identified = methodEnv.formals_value.get(index);
 				System.out.format("identified: %s\n",identified);
 				//encontrei valor nos formals. então a variavel eh um formals.
-				identifier = new LlvmNamedValue(n.s,identified.type);
+				identifier = new LlvmNamedValue("%"+n.s+"_address",new LlvmPointer(identified.type));
 			}else{
 				//se nao achou, vamos procurar no locals
 				aux = methodEnv.locals_name.contains(n.s);
@@ -1006,19 +1012,37 @@ public class Codegen extends VisitorAdapter{
 					identified = methodEnv.locals_value.get(index);
 					System.out.format("identified: %s\n",identified);
 					//encontrei valor nos locals. então a variavel eh um formals.
-					identifier = new LlvmNamedValue(n.s,identified.type);
+					identifier = new LlvmNamedValue("%"+n.s+"_address",new LlvmPointer(identified.type));
 				}else{
 					//se nao achou no locals, vamos procurar no classenv
-					aux = classEnv.varList.contains(n.s);
+					//dai devemos retornar um getelementptr
+					//ToDo: suportar getelementptr
+					
+					StringBuilder var_name = new StringBuilder();
+					
+					var_name.append("%");
+					var_name.append(n.s);
+					var_name.append("_address");
+					
+					index = classEnv.varList.size();
+					for(i=0;i<index;i++){
+						LlvmValue var_atual = classEnv.varList.get(i);
+						System.out.format("varList: %s\n",var_atual);
+						if(var_atual.toString().contains(var_name.toString())){
+							System.out.format("le migueh :D\n");
+						}
+					}
+					
+					aux = classEnv.varList.contains(var_name);
 					System.out.format("varlist: %s\n",aux);
+					System.out.format("varname: %s\n",var_name);
 					if(aux){
-						index = classEnv.varList.indexOf(n.s);
 						identified = classEnv.varList.get(index);
 						System.out.format("identified: %s\n",identified);
-						identifier = new LlvmNamedValue(n.s,identified.type);
+						identifier = new LlvmNamedValue("%"+n.s,identified.type);
 					}else{
 						System.out.format("deu ruim... nao eh nenhuma variavel...\n");
-						identifier = new LlvmNamedValue(n.s, LlvmPrimitiveType.I32);
+						identifier = new LlvmNamedValue("%"+n.s, new LlvmPointer(LlvmPrimitiveType.I32));
 					}
 				}
 			}
@@ -1030,10 +1054,10 @@ public class Codegen extends VisitorAdapter{
 				index = classEnv.varList.indexOf(n.s);
 				identified = classEnv.varList.get(index);
 				System.out.format("identified: %s\n",identified);
-				identifier = new LlvmNamedValue(n.s,identified.type);
+				identifier = new LlvmNamedValue("%"+n.s,identified.type);
 			}else{
 				System.out.format("deu ruim... nao eh nenhuma variavel...\n");
-				identifier = new LlvmNamedValue(n.s, LlvmPrimitiveType.I32);
+				identifier = new LlvmNamedValue("%"+n.s, LlvmPrimitiveType.I32);
 			}
 		}
 		
@@ -1115,7 +1139,7 @@ public LlvmValue visit(ClassDeclSimple n){
 			
 			System.out.format("variable: %s\n",variable);
 			
-			varList.add(vars.head.accept(this));
+			varList.add(variable);
 			typeList.add((LlvmType) vars.head.type.accept(this));
 		}
 		
