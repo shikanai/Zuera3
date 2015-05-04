@@ -338,6 +338,18 @@ public class Codegen extends VisitorAdapter{
 		System.out.format("return type: %s\n",n.returnType);
 		System.out.format("return exp: %s\n",n.returnExp);
 		
+		//antes de sair preenchendo o formals, temos que colocar o %class * %this
+		
+		LlvmClassInfo class_this = new LlvmClassInfo(classEnv.nameClass);
+		
+		LlvmPointer class_this_ptr = new LlvmPointer(class_this);
+		
+		LlvmNamedValue this_val = new LlvmNamedValue("%this",class_this_ptr);
+		
+		System.out.format("this_val: \n%s \n%s \n%s\n",this_val, this_val.name, this_val.type);
+		
+		parametros.add(this_val);
+		
 		//preenchendo a lista de parametros do metodo
 		if(n.formals != null) {
 			System.out.format("formals: %s\n",n.formals.head);
@@ -379,8 +391,8 @@ public class Codegen extends VisitorAdapter{
 		
 		j = parametros.size();
 		
-		//alocando memoria para todos os parametros
-		for(i = 0; i < j ; i++){
+		//alocando memoria para todos os parametros, menos o referente a classe
+		for(i = 1; i < j ; i++){
 			
 			LlvmValue parametro_atual = parametros.get(i);
 			
@@ -791,6 +803,8 @@ public class Codegen extends VisitorAdapter{
 	public LlvmValue visit(Call n){
 		
 		System.out.format("call :)\n");
+		
+		System.out.format("call: %s\n",n);
 
 		LlvmType type = (LlvmType) n.type.accept(this);
 		
@@ -806,13 +820,37 @@ public class Codegen extends VisitorAdapter{
 		
 		int i, j; 
 		
+		//primeiro adicionamos o this object
+		LlvmValue thisObject = n.object.accept(this);
+		
+		types_list.add(thisObject.type);
+		parametros_func.add(thisObject);
+		
+		//depois os parametros de vdd
 		if(n.actuals != null){
 			
 			System.out.format("size actuals:%s\n", n.actuals.size());
 			
 			j = n.actuals.size();
 			
-			//iterando todos os parametros - cuidado com essa implementacao, talvez seja bom alterar.
+			for (util.List<Exp> actuals = n.actuals; actuals != null; actuals = actuals.tail){
+				
+				LlvmValue aux = actuals.head.accept(this);
+				
+				//tipo do parametro atual
+				LlvmType aux2 =(LlvmType) aux.type;
+				
+				System.out.format("actuals:%s\n", n.actuals.head);
+				
+				System.out.format("actuals type:%s\n", n.actuals.head.type);
+				
+				//incrementando as duas listas
+				types_list.add(aux2);
+				parametros_func.add(aux);
+			}
+			
+			/*
+			//iterando todos os parametros - tinha errado nessa parte!
 			for(i = 0; i < j; i++){
 				
 				//parametro atual
@@ -829,7 +867,7 @@ public class Codegen extends VisitorAdapter{
 				types_list.add(aux2);
 				parametros_func.add(aux);
 				n.actuals = n.actuals.tail;
-			}
+			}*/
 		
 		}
 		
@@ -882,12 +920,13 @@ public class Codegen extends VisitorAdapter{
 		
 		System.out.format("This******** :)\n");
 		
-		LlvmPointer classeAtual = null;
+		/*LlvmPointer classeAtual = null;
 		
 		LlvmPointer retorno = null;
 		
 		//ToDo adaptar
 		//todo: adaptar para symtab
+		why the hell decidi alocar algo para this!!!!
 		if(classEnv!=null){
 			
 			LlvmClassInfo classInfo = new LlvmClassInfo(classEnv.nameClass);
@@ -910,6 +949,20 @@ public class Codegen extends VisitorAdapter{
 		}else{
 			return null;
 		}
+		*/
+		
+		//Pega o tipo do object
+		LlvmType thisType = (LlvmType) n.type.accept(this);
+		
+		LlvmPointer thisType_ptr = new LlvmPointer(thisType);
+		
+		System.out.format("thistype: %s\n",thisType_ptr);
+		
+		//cria um registrador referente ao this
+		LlvmRegister thisReg = new LlvmRegister("%this",thisType_ptr);
+		
+		return thisReg;
+		
 	}
 	public LlvmValue visit(NewArray n){
 	
@@ -931,7 +984,21 @@ public class Codegen extends VisitorAdapter{
 		//aloca uma array [tamanho x type], associa ao um registrador do tipo [tamanho x type]*
 		assembler.add(new LlvmAlloca(registrador, new LlvmArray(tamanho_int, tipo_array), new LinkedList<LlvmValue>()));
 		
-		return registrador;
+		LlvmRegister returns;
+		
+		//fazer bitcast
+		if(tipo_ptr.toString().contains(" x i32")){
+			returns = new LlvmRegister(LlvmPrimitiveType.I32PTR);
+		}else if(tipo_ptr.toString().contains(" x i8")){
+			returns = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I8));
+		}else{
+			returns = new LlvmRegister(tipo_ptr);
+		}
+		
+		assembler.add(new LlvmBitcast(returns, registrador, returns.type));
+		
+		//return registrador;
+		return returns;
 	}
 	public LlvmValue visit(NewObject n){
 		System.out.format("newobject :)\n");
@@ -982,7 +1049,7 @@ public class Codegen extends VisitorAdapter{
 		System.out.format("********identifier: %s |\n",n);
 		
 		//TODO: descobrir como pegar o tipo do identifier
-		//Muito importante, corrigir!!
+		//descoberto! usando symtab
 		
 		LlvmNamedValue identifier = null;
 		int index;
@@ -1029,10 +1096,50 @@ public class Codegen extends VisitorAdapter{
 						LlvmValue var_atual = classEnv.varList.get(i);
 						System.out.format("varList: %s\n",var_atual);
 						if(var_atual.toString().contains(var_name.toString())){
-							System.out.format("le migueh :D\n");
+							System.out.format("le migueh! encontrei o endereco da variavel.\n");
+							LlvmType vartype = var_atual.type;
+							System.out.format("@identifier: vartype: %s\n",vartype);
+							//agora que encontramos o identifier, vamos usar o getelementptr para pegar os valores dele.
+							
+							//registrador no qual sera colocado o ponteiro para o elemento em questao. 
+							//utilizamos LlvmPointer porque esse regisrtador vai apontar para o endereco que aponta para o vartype
+							LlvmRegister returns = new LlvmRegister(new LlvmPointer(vartype));
+							
+							//variavel onde colocaremos os offsets
+							List<LlvmValue> offsets = new LinkedList<LlvmValue>();
+							
+							//peguei da mainclass new LlvmIntegerLiteral(0)
+							//primeiro indice: ponteiro para vetor de ponteiros (queremos sempre a base!)
+							LlvmValue offset_1 = new LlvmIntegerLiteral(0);
+							
+							//segundo indice: indice do elemento do ponteiro apontado pelo indice 1.
+							//como acabamos de dar match nele, colocamos i.
+							LlvmValue offset_2 = new LlvmIntegerLiteral(i);
+							
+							//primeiro indice
+							offsets.add(offset_1);
+							
+							//segundo indice
+							offsets.add(offset_2);
+							
+							//do slide 21/47 da parte 1: %tmp0 = getelementptr %class.Matematica * %this, i32 0, i32 0
+							
+							//LlvmNamedValue classUsed = new LlvmNamedValue("%class."+classEnv.nameClass, vartype);
+							
+							LlvmClassInfo classType = new LlvmClassInfo(classEnv.nameClass);
+							
+							LlvmPointer classType_ptr = new LlvmPointer(classType);
+							
+							//Criando source (do GetElementPtr)
+							LlvmNamedValue source = new LlvmNamedValue("%this",classType_ptr);
+							
+							assembler.add(new LlvmGetElementPointer(returns, source, offsets));
+							
+							return returns;
+							
 						}
 					}
-					
+					/*
 					aux = classEnv.varList.contains(var_name);
 					System.out.format("varlist: %s\n",aux);
 					System.out.format("varname: %s\n",var_name);
@@ -1043,11 +1150,69 @@ public class Codegen extends VisitorAdapter{
 					}else{
 						System.out.format("deu ruim... nao eh nenhuma variavel...\n");
 						identifier = new LlvmNamedValue("%"+n.s, new LlvmPointer(LlvmPrimitiveType.I32));
-					}
+					}*/
 				}
 			}
 		}else{
 			//se nao achou no locals, vamos procurar no classenv
+			//dai devemos retornar um getelementptr
+			//ToDo: suportar getelementptr
+			
+			StringBuilder var_name = new StringBuilder();
+			
+			var_name.append("%");
+			var_name.append(n.s);
+			var_name.append("_address");
+			
+			index = classEnv.varList.size();
+			for(i=0;i<index;i++){
+				LlvmValue var_atual = classEnv.varList.get(i);
+				System.out.format("varList: %s\n",var_atual);
+				if(var_atual.toString().contains(var_name.toString())){
+					System.out.format("le migueh! encontrei o endereco da variavel22.\n");
+					LlvmType vartype = var_atual.type;
+					System.out.format("@identifier: vartype: %s\n",vartype);
+					//agora que encontramos o identifier, vamos usar o getelementptr para pegar os valores dele.
+					
+					//registrador no qual sera colocado o ponteiro para o elemento em questao. 
+					//utilizamos LlvmPointer porque esse regisrtador vai apontar para o endereco que aponta para o vartype
+					LlvmRegister returns = new LlvmRegister(new LlvmPointer(vartype));
+					
+					//variavel onde colocaremos os offsets
+					List<LlvmValue> offsets = new LinkedList<LlvmValue>();
+					
+					//peguei da mainclass new LlvmIntegerLiteral(0)
+					//primeiro indice: ponteiro para vetor de ponteiros (queremos sempre a base!)
+					LlvmValue offset_1 = new LlvmIntegerLiteral(0);
+					
+					//segundo indice: indice do elemento do ponteiro apontado pelo indice 1.
+					//como acabamos de dar match nele, colocamos i.
+					LlvmValue offset_2 = new LlvmIntegerLiteral(i);
+					
+					//primeiro indice
+					offsets.add(offset_1);
+					
+					//segundo indice
+					offsets.add(offset_2);
+					
+					//do slide 21/47 da parte 1: %tmp0 = getelementptr %class.Matematica * %this, i32 0, i32 0
+					
+					//LlvmNamedValue classUsed = new LlvmNamedValue("%class."+classEnv.nameClass, vartype);
+					
+					LlvmClassInfo classType = new LlvmClassInfo(classEnv.nameClass);
+					
+					LlvmPointer classType_ptr = new LlvmPointer(classType);
+					
+					//Criando source (do GetElementPtr)
+					LlvmNamedValue source = new LlvmNamedValue("%this",classType_ptr);
+					
+					assembler.add(new LlvmGetElementPointer(returns, source, offsets));
+					
+					return returns;
+				}
+			}
+			
+			/*//se nao achou no locals, vamos procurar no classenv
 			aux = classEnv.varList.contains(n.s);
 			System.out.format("varlist2: %s\n",aux);
 			if(aux){
@@ -1058,7 +1223,7 @@ public class Codegen extends VisitorAdapter{
 			}else{
 				System.out.format("deu ruim... nao eh nenhuma variavel...\n");
 				identifier = new LlvmNamedValue("%"+n.s, LlvmPrimitiveType.I32);
-			}
+			}*/
 		}
 		
 		/*migueh antigo
