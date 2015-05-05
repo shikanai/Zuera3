@@ -744,17 +744,22 @@ public class Codegen extends VisitorAdapter{
 		LlvmValue value = n.value.accept(this);
 		
 		
-		LlvmRegister reg = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
+		LlvmRegister reg = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32PTR));
 		List<LlvmValue> offsets = new LinkedList<LlvmValue>();
 		offsets.add(index);
 		
-		//peguei ponteiro para index elemento 
+		//peguei ponteiro para o ponteiro do elemento que queremos.
+		//Agora preciso carregar esse ponteiro em outro registrador, para utilizar ele.
 		assembler.add(new LlvmGetElementPointer(reg, array, offsets));
+		
+		LlvmRegister reg_address_offset = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
+		
+		assembler.add(new LlvmLoad(reg_address_offset, reg));
 		
 		System.out.format("regtype arraytype: %s %s :)\n",reg.type, array.type);
 		
 		//assembler.add(new LlvmLoad());
-		assembler.add(new LlvmStore(value, reg));
+		assembler.add(new LlvmStore(value, reg_address_offset));
 		
 		return null;
 	}
