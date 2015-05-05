@@ -167,9 +167,6 @@ public class Codegen extends VisitorAdapter{
 	
 	// Todos os visit's que devem ser implementados	
 	public LlvmValue visit(ClassDeclSimple n){
-
-		//methodEnv = symTab.methods.get(n.name.s);
-		//System.out.format("****methodEnv: \n%s \n%s \n%s \n%s\n",methodEnv.formals_name,methodEnv.formals_value,methodEnv.locals_name,methodEnv.locals_value);
 		
 		//recuperando classEnv do SymTab
 		classEnv = symTab.classes.get(n.name.s);
@@ -203,6 +200,26 @@ public class Codegen extends VisitorAdapter{
 		if (n.varList != null) {
 			j = n.varList.size();
 			System.out.format("Numero de variaveis: %d\n", j);
+			
+			for (util.List<VarDecl> varList = n.varList; varList != null; varList = varList.tail){
+				//itera a lista de variaveis para pegar todos os tipos e appendar em classTypes.
+				LlvmValue variable_type = varList.head.type.accept(this);
+				
+				System.out.format("tipos das variaveis:%s \n", variable_type);
+				
+				if(variable_type.toString().contains("%class")){
+					System.out.format("eh uma classe. alterando para pointer...\n");
+					LlvmPointer ptr_class = new LlvmPointer((LlvmType) variable_type);
+					typeList.add(ptr_class);
+					
+				}else{
+					//adiciona os tipos de variaveis
+					typeList.add((LlvmType) variable_type);
+				}
+		
+			}
+			
+			/* nao podemos fazer assim, senao estraga os ponteiros do n!
 			for (i = 0; i < j; i++){
 				
 				//itera a lista de variaveis para pegar todos os tipos e appendar em classTypes.
@@ -220,7 +237,7 @@ public class Codegen extends VisitorAdapter{
 					typeList.add((LlvmType) variable_type);
 				}
 				n.varList = n.varList.tail;
-			}
+			}*/
 		}
 
 		//Structure onde serao colocados os tipos, formatados pelo LlvmStructure
@@ -260,7 +277,20 @@ public class Codegen extends VisitorAdapter{
 		if(n.methodList != null) {
 			j = n.methodList.size();
 			System.out.format("methodList.size: %s\n",n.methodList.size());
-			//itera todos os metodos da classe
+			
+			
+			for (util.List<MethodDecl> methodList = n.methodList; methodList != null; methodList = methodList.tail){
+				MethodDecl method = methodList.head;
+				
+				System.out.format("@class - method: %s ", method);
+				
+				//desce para methods
+				
+				method.accept(this);
+			}
+			
+			/* nao pode fazer assim, senao estraga o n
+			 * //itera todos os metodos da classe
 			for (i = 0; i < j; i++) {
 				MethodDecl method = n.methodList.head;
 				
@@ -271,7 +301,7 @@ public class Codegen extends VisitorAdapter{
 				method.accept(this);
 				
 				n.methodList = n.methodList.tail;
-			}
+			}*/
 		}
 		
 		return null;
@@ -356,7 +386,13 @@ public class Codegen extends VisitorAdapter{
 			j = n.formals.size();
 			System.out.format("formals size: %d\n", j);
 			
-			//itera todos os parametros do metodo - Como nao passamos novamente pelo codigo,
+			for (util.List<Formal> formals = n.formals; formals != null; formals = formals.tail){
+				LlvmValue param = formals.head.accept(this);
+				System.out.format("formals: %s \n", n.formals.head);
+				parametros.add(param);
+			}
+			
+			/*//itera todos os parametros do metodo - Como nao passamos novamente pelo codigo,
 			//tudo bem deixar assim :P
 			for (i = 0; i < j; i++) {
 				
@@ -366,7 +402,7 @@ public class Codegen extends VisitorAdapter{
 				parametros.add(param);
 				n.formals = n.formals.tail;
 				
-			}
+			}*/
 		}
 		
 		declString.append("@__");
@@ -424,8 +460,15 @@ public class Codegen extends VisitorAdapter{
 			System.out.format("locals size: %s\n",n.locals.size());
 			j = n.locals.size();
 			
-			//Como nao passamos novamente pelo codigo,
-			//tudo bem deixar assim :P
+			for (util.List<VarDecl> locals = n.locals; locals != null; locals = locals.tail){
+				
+				//desce para varDecl para cada variavel local
+				locals.head.accept(this);
+				System.out.format("locals****: %s \n", n.locals.head);
+			}
+			
+			/*//Como nao passamos novamente pelo codigo,
+			//tudo bem deixar assim :P, mas preferi deixar no padrao
 			for(i=0;i<j;i++){
 				
 				//chama varDecl para cada variavel local
@@ -435,7 +478,7 @@ public class Codegen extends VisitorAdapter{
 				
 				n.locals = n.locals.tail;
 				
-			}
+			}*/
 		}
 		
 		//itera nos statements do metodo
@@ -444,6 +487,13 @@ public class Codegen extends VisitorAdapter{
 			
 			j = n.body.size();
 			
+			
+			for (util.List<Statement> body = n.body; body != null; body = body.tail){
+				System.out.format("body****: %s \n", n.body.head);
+				//desce para stmt seguinte.
+				body.head.accept(this);
+			}
+			/*
 			//Como nao passamos novamente pelo codigo,
 			//tudo bem deixar assim :P
 			for(i=0;i<j;i++){
@@ -455,7 +505,7 @@ public class Codegen extends VisitorAdapter{
 						
 				n.body = n.body.tail;
 						
-			}
+			}*/
 		}
 
 		//retorno...
@@ -503,6 +553,7 @@ public class Codegen extends VisitorAdapter{
 	//de forma alguma consegui pensar em como fazer isso sem adicionar uma nova classe
 	//entao criei o LlvmClassInfo
 	
+	//So cai aqui quando eh class :P.
 	public LlvmValue visit(IdentifierType n){
 		System.out.format("identifiertype :)\n");
 		
@@ -532,6 +583,7 @@ public class Codegen extends VisitorAdapter{
 	}
 	
 	//na implementacao do block ,simplesmente iteramos o body inteiro do block
+	//(dentro do while)	
 	public LlvmValue visit(Block n){
 		System.out.format("block :)\n");
 		
@@ -541,7 +593,14 @@ public class Codegen extends VisitorAdapter{
 			
 			j = n.body.size();
 			
-			//itera em todos os elementos - como ja passamos pelo symtab,
+			for (util.List<Statement> body = n.body; body != null; body = body.tail){
+				
+				System.out.format("@block body: %s\n", n.body.head);
+				//desce para cada parte do block
+				body.head.accept(this);
+			}
+			
+			/*//itera em todos os elementos - como ja passamos pelo symtab,
 			//acho que eh ok deixar desse jeito... senao, mudar dps.
 			for(i=0;i<j;i++){
 			
@@ -553,7 +612,7 @@ public class Codegen extends VisitorAdapter{
 				n.body = n.body.tail;
 				
 				
-			}
+			}*/
 		}
 		
 		return null;
@@ -667,6 +726,7 @@ public class Codegen extends VisitorAdapter{
 		//desce para body do while
 		n.body.accept(this);
 		
+		//Tivemos que colocar um accept para essa nova condition aqui, pois, como dito em aula anteriormente, nao se pode reatribuir valores a registradores
 		LlvmValue new_cond = n.condition.accept(this);
 		
 		//depois de executar o codigo dentro do while, faz de novo o branch. 
@@ -714,6 +774,9 @@ public class Codegen extends VisitorAdapter{
 		
 		LlvmValue rhs = n.exp.accept(this);
 		LlvmRegister returns;
+		//nesta parte, para retornarmos o tipo certo, tivemos que converter todos os parametros do tipo
+		//[ A x iB] para ponteiros. o Assembly reclamava quando tinha algum store ou algo do genero com tipos
+		// diferentes
 		if(rhs.type.toString().contains("x i")){
 			System.out.format("expressao de rhs envolve pointers para arrays. fazendo casting...\n");
 			
@@ -722,6 +785,7 @@ public class Codegen extends VisitorAdapter{
 				returns = new LlvmRegister(LlvmPrimitiveType.I32PTR);
 			}else if(rhs.type.toString().contains(" x i8")){
 				returns = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I8));
+			//Esse else eh meio inutil, mas pelo fato de eu querer usar elseif, deixei ele aqui mesmo.
 			}else{
 				returns = new LlvmRegister(rhs.type);
 			}
@@ -729,6 +793,7 @@ public class Codegen extends VisitorAdapter{
 			assembler.add(new LlvmBitcast(returns, rhs, returns.type));
 			assembler.add(new LlvmStore(returns, n.var.accept(this)));
 		}else{
+			//caso o tipo ja esteja ok, soh damos store com o rhs mesmo.
 			assembler.add(new LlvmStore(rhs, n.var.accept(this)));
 		}
 		return null;
@@ -754,8 +819,7 @@ public class Codegen extends VisitorAdapter{
 		LlvmRegister reg_array_ptr = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
 		assembler.add(new LlvmLoad(reg_array_ptr, array));
 		
-		//peguei ponteiro para o ponteiro do elemento que queremos.
-		//Agora preciso carregar esse ponteiro em outro registrador, para utilizar ele.
+		//Agora pedimos o ponteiro para o elemento que queremos da array
 		assembler.add(new LlvmGetElementPointer(reg, reg_array_ptr, offsets));
 		
 		//LlvmRegister reg_address_offset = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
@@ -765,6 +829,8 @@ public class Codegen extends VisitorAdapter{
 		//System.out.format("regtype arraytype: %s %s :)\n",reg.type, array.type);
 		
 		//assembler.add(new LlvmLoad());
+		
+		//e armazenamos o valor nesse endereco.
 		assembler.add(new LlvmStore(value, reg));
 		
 		return null;
@@ -807,8 +873,10 @@ public class Codegen extends VisitorAdapter{
 	}
 	//ok
 	public LlvmValue visit(Equal n){
+		//descendo nos dois lados
 		LlvmValue v1 = n.lhs.accept(this);
 		LlvmValue v2 = n.rhs.accept(this);
+		//criando registrador bool para retornar
 		LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I1);
 		//utilizando 1 para equal
 		assembler.add(new LlvmIcmp(lhs,1,v1.type,v1,v2));
@@ -847,8 +915,7 @@ public class Codegen extends VisitorAdapter{
 		LlvmRegister reg_array_ptr = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
 		assembler.add(new LlvmLoad(reg_array_ptr, array));
 				
-		//peguei ponteiro para o ponteiro do elemento que queremos.
-		//Agora preciso carregar esse ponteiro em outro registrador, para utilizar ele.
+		//Agora pedimos o ponteiro para o elemento que queremos da array
 		assembler.add(new LlvmGetElementPointer(reg, reg_array_ptr, offsets));
 				
 		//LlvmRegister reg_address_offset = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
@@ -863,6 +930,7 @@ public class Codegen extends VisitorAdapter{
 		
 		LlvmRegister reg_address_offset = new LlvmRegister(LlvmPrimitiveType.I32);
 		
+		//carregamos o valor contido no endereco, e retornamos ele
 		assembler.add(new LlvmLoad(reg_address_offset, reg));
 		
 		return reg_address_offset;
@@ -1095,7 +1163,6 @@ public class Codegen extends VisitorAdapter{
 		
 		LlvmPointer retorno = null;
 		
-		//ToDo adaptar
 		//todo: adaptar para symtab
 		why the hell decidi alocar algo para this!!!!
 		if(classEnv!=null){
@@ -1194,30 +1261,35 @@ public class Codegen extends VisitorAdapter{
 		
 		System.out.format("n.type:%s :)\n",n.type);
 		System.out.format("*****n:%s %s\n:)\n",n, n.className);
-		StringBuilder address_str = new StringBuilder();
+		//StringBuilder address_str = new StringBuilder();
 		
-		//LlvmType type = ((LlvmPointer)n.type.accept(this)).content;
 		LlvmType type = (LlvmType) (n.type.accept(this));
 		
 		System.out.format("n.type | n.type.content: %s %s :)\n",n.type,type);
 		
-		LlvmRegister res = new LlvmRegister(new LlvmPointer(type));
+		LlvmPointer type_ptr = new LlvmPointer(type);
 		
-		address_str.append("%");
+		//cria registrador que tem tipo type *
+		LlvmRegister returns = new LlvmRegister(type_ptr);
 		
-		address_str.append(n.className.toString());
+		//address_str.append("%");
 		
-		address_str.append("_address");
+		//address_str.append(n.className.toString());
+		
+		//address_str.append("_address");
 		
 		//%class *
-		LlvmRegister address = new LlvmRegister(address_str.toString(),new LlvmPointer(type));
+		//LlvmRegister address = new LlvmRegister(address_str.toString(),new LlvmPointer(type));
 		
 		//gera o assembly: %name_address = alloca type
-		assembler.add(new LlvmAlloca(address,new LlvmPointer(type), new LinkedList<LlvmValue>()));
+		//assembler.add(new LlvmAlloca(address,new LlvmPointer(type), new LinkedList<LlvmValue>()));
 		
-		assembler.add(new LlvmMalloc(res, type, type.toString()));
+		//aloca memoria para o objeto
+		assembler.add(new LlvmMalloc(returns, type, type.toString()));
 		
-		return res;
+		return returns;
+		
+		//return address;
 		
 	}
 	//ok
@@ -1285,7 +1357,7 @@ public class Codegen extends VisitorAdapter{
 						LlvmValue var_atual = classEnv.varList.get(i);
 						System.out.format("varList: %s\n",var_atual);
 						if(var_atual.toString().contains(var_name.toString())){
-							System.out.format("le migueh! encontrei o endereco da variavel.\n");
+							//System.out.format("le migueh! encontrei o endereco da variavel.\n");
 							LlvmType vartype = var_atual.type;
 							System.out.format("@identifier: vartype: %s\n",vartype);
 							//agora que encontramos o identifier, vamos usar o getelementptr para pegar os valores dele.
