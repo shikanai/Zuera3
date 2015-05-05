@@ -711,7 +711,25 @@ public class Codegen extends VisitorAdapter{
 		return null;
 		*/
 		
-		assembler.add(new LlvmStore(n.exp.accept(this), n.var.accept(this)));
+		LlvmValue rhs = n.exp.accept(this);
+		LlvmRegister returns;
+		if(rhs.type.toString().contains("x i")){
+			System.out.format("expressao de rhs envolve pointers para arrays. fazendo casting...\n");
+			
+			//fazer bitcast
+			if(rhs.type.toString().contains(" x i32")){
+				returns = new LlvmRegister(LlvmPrimitiveType.I32PTR);
+			}else if(rhs.type.toString().contains(" x i8")){
+				returns = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I8));
+			}else{
+				returns = new LlvmRegister(rhs.type);
+			}
+			
+			assembler.add(new LlvmBitcast(returns, rhs, returns.type));
+			assembler.add(new LlvmStore(returns, n.var.accept(this)));
+		}else{
+			assembler.add(new LlvmStore(rhs, n.var.accept(this)));
+		}
 		return null;
 	}
 	
@@ -790,14 +808,80 @@ public class Codegen extends VisitorAdapter{
 	//nao consegui acessar o length da array.
 	//Portanto, vamos ter que carregar a array e verificar
 	public LlvmValue visit(ArrayLength n){
-		LlvmValue tamanho = n.array.accept(this);
+		
+		int index = 0;
+		char type_char;
 		System.out.format("arraylength :)\n");
-		
-		
+
 		//System.out.format("arraylength %d:)\n", Integer.parseInt(tamanho.toString()));
-		System.out.format("****n, arraylength, n.type, tamanho: %s \n%s \n%s \n%s \n%s \n%s\n",n,n.array.type,n.array.line,n.array.row,n.line, n.row);
+		System.out.format("****n, n.array: %s \n%s\n",n,n.array);
 		
-		return tamanho;
+		//desce para o array, e pega o registrador que aponta para ela em array
+		LlvmValue array = n.array.accept(this);
+		
+		System.out.format("array e array.type: %s \n%s\n",array,array.type);
+		
+		StringBuilder type = new StringBuilder();
+		type.append(array.type.toString());
+		
+		System.out.format("type: %s\n",type);
+		
+		StringBuilder lengths = new StringBuilder();
+		
+		
+		//agora vamos parsear esse tamanho, em busca do tamanho total da string...
+		
+		while(true){
+			type_char = type.charAt(index);
+			if(type_char=='i'){
+				System.out.format("fim\n");
+				break;
+			}
+			System.out.format("char atual:%c\n",type.charAt(index));
+			if(type_char=='x'){
+				System.out.format("x\n");
+				lengths.append(" ");
+			}
+			//achei um numero...
+			if(type_char != 'x' && type_char != ' ' && type_char != '['){
+				System.out.format("numero: %c\n", type_char);
+				lengths.append(type_char);
+			}
+			if(type_char == '['){
+				System.out.format("[\n");
+			}
+			if(type_char == ' '){
+				System.out.format("space\n");
+			}
+			index++;
+		}
+		
+		System.out.format("lengths: %s\n", lengths);
+		System.out.format("lengths.length: %s\n", lengths.length());
+		index = 0;
+		
+		StringBuilder length = new StringBuilder();
+		int total_length = 1;
+		while(index < lengths.length()){
+			type_char = lengths.charAt(index);
+			if(type_char == '\0'){
+				System.out.format("fim\n");
+				break;
+			}
+			if(type_char!=' '){
+				length.append(type_char);
+			}else{
+				System.out.format("space\n");
+				total_length = total_length * Integer.parseInt(length.toString());
+				System.out.format("total_length: %d\n",total_length);
+				length = new StringBuilder();
+			}
+			index++;
+		}
+		
+		LlvmIntegerLiteral length_final = new LlvmIntegerLiteral(total_length);
+		
+		return length_final;
 		
 	}
 	public LlvmValue visit(Call n){
@@ -984,7 +1068,7 @@ public class Codegen extends VisitorAdapter{
 		//aloca uma array [tamanho x type], associa ao um registrador do tipo [tamanho x type]*
 		assembler.add(new LlvmAlloca(registrador, new LlvmArray(tamanho_int, tipo_array), new LinkedList<LlvmValue>()));
 		
-		LlvmRegister returns;
+		/*LlvmRegister returns;
 		
 		//fazer bitcast
 		if(tipo_ptr.toString().contains(" x i32")){
@@ -996,9 +1080,9 @@ public class Codegen extends VisitorAdapter{
 		}
 		
 		assembler.add(new LlvmBitcast(returns, registrador, returns.type));
+		return returns;*/
+		return registrador;
 		
-		//return registrador;
-		return returns;
 	}
 	public LlvmValue visit(NewObject n){
 		System.out.format("newobject :)\n");
