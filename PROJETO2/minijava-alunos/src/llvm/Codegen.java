@@ -1108,8 +1108,20 @@ public class Codegen extends VisitorAdapter{
 		System.out.format("newarray :)\n");
 		
 		LlvmValue tamanho = n.size.accept(this);
+		
+		System.out.format("tamanho: %s :)\n",tamanho);
+		
+		if(tamanho.toString().contains("%")){
+			//isso quer dizer que existe um registrador que contem o tamanho...
+			//nesse caso vamos precisar usar malloc
+			
+			return null;
+		}else{
+		
 		//Como nos testes nao utilizamos array de outros tipos, fica assim por hora...
 		LlvmType tipo_array = tamanho.type;
+		
+		System.out.format("tamanho.type: %s :)\n",tipo_array);
 		int tamanho_int = Integer.parseInt(tamanho.toString());
 
 		System.out.format("***Tamanho, tamanho_int, tipo, etc: %s %s %d %s %s:)\n",tamanho,tipo_array,tamanho_int,n.type,n.toString());
@@ -1137,6 +1149,7 @@ public class Codegen extends VisitorAdapter{
 		assembler.add(new LlvmBitcast(returns, registrador, returns.type));
 		return returns;*/
 		return registrador;
+		}
 		
 	}
 	public LlvmValue visit(NewObject n){
