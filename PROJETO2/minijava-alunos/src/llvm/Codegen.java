@@ -667,9 +667,10 @@ public class Codegen extends VisitorAdapter{
 		//desce para body do while
 		n.body.accept(this);
 		
-		//depois de executar o codigo dentro do while, faz de novo o branch. 
-		assembler.add(new LlvmBranch(cond, brTrue, brBreak));
+		LlvmValue new_cond = n.condition.accept(this);
 		
+		//depois de executar o codigo dentro do while, faz de novo o branch. 
+		assembler.add(new LlvmBranch(new_cond, brTrue, brBreak));
 		//label do break
 		assembler.add(new LlvmLabel(brBreak));
 			
