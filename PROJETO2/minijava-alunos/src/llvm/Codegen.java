@@ -743,12 +743,17 @@ public class Codegen extends VisitorAdapter{
 		LlvmValue index = n.index.accept(this);
 		LlvmValue value = n.value.accept(this);
 		
+		
 		LlvmRegister reg = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
 		List<LlvmValue> offsets = new LinkedList<LlvmValue>();
 		offsets.add(index);
 		
+		//peguei ponteiro para index elemento 
 		assembler.add(new LlvmGetElementPointer(reg, array, offsets));
 		
+		System.out.format("regtype arraytype: %s %s :)\n",reg.type, array.type);
+		
+		//assembler.add(new LlvmLoad());
 		assembler.add(new LlvmStore(value, reg));
 		
 		return null;
@@ -1010,20 +1015,21 @@ public class Codegen extends VisitorAdapter{
 		
 		//pega tipo do identificador
 		LlvmPrimitiveType identifier_type = (LlvmPrimitiveType) n.type.accept(this);
-				
-		//aloca registrador para retorno
-		LlvmRegister res = new LlvmRegister((LlvmType)identifier_type);
 		
-		// type *
-		LlvmPointer pointer_to_type = new LlvmPointer (identifier_type);
+		//registrador que vai ser retornado
+		LlvmRegister returns = new LlvmRegister(identifier_type);
 		
-		//%name_address *
-		LlvmNamedValue name = new LlvmNamedValue("%" + n.name.s + "_address",pointer_to_type);
+		//apontador vindo do identifier, que armazena a informacao que queremos.
+		LlvmValue address = n.name.accept(this);
+		System.out.format("@identifierexp address: %s\n",address);
+
+		//ponteiro que passaremos para o load
+		LlvmNamedValue needed_info_ptr = new LlvmNamedValue(address.toString(),address.type);
 		
-		//res = load type * %name_address
-		assembler.add(new LlvmLoad(res, name));
+		//res = load type * %where_from_load
+		assembler.add(new LlvmLoad(returns, needed_info_ptr));
 		
-		return res;
+		return returns;
 		
 	}
 	//test
@@ -1246,6 +1252,8 @@ public class Codegen extends VisitorAdapter{
 							
 							assembler.add(new LlvmGetElementPointer(returns, source, offsets));
 							
+							System.out.format("returns:%s \n %s\n %s\n",returns,returns.name,returns.type);
+							
 							return returns;
 							
 						}
@@ -1318,6 +1326,8 @@ public class Codegen extends VisitorAdapter{
 					LlvmNamedValue source = new LlvmNamedValue("%this",classType_ptr);
 					
 					assembler.add(new LlvmGetElementPointer(returns, source, offsets));
+					
+					System.out.format("returns:%s \n %s\n %s\n",returns,returns.name,returns.type);
 					
 					return returns;
 				}
