@@ -836,11 +836,37 @@ public class Codegen extends VisitorAdapter{
 		LlvmValue array = n.array.accept(this);
 		LlvmValue index = n.index.accept(this);
 		
-		LlvmRegister reg = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32PTR));
+		System.out.format("arraylookup array e index: %s \n%s\n",array,index);
+		
+		LlvmRegister reg = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
 		List<LlvmValue> offsets = new LinkedList<LlvmValue>();
 		offsets.add(index);
-		
+		/***************************************************/
+		//carregando a array, agora meu reg_array_ptr vai ter a array em questao
+		LlvmRegister reg_array_ptr = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
+		assembler.add(new LlvmLoad(reg_array_ptr, array));
+				
 		//peguei ponteiro para o ponteiro do elemento que queremos.
+		//Agora preciso carregar esse ponteiro em outro registrador, para utilizar ele.
+		assembler.add(new LlvmGetElementPointer(reg, reg_array_ptr, offsets));
+				
+		//LlvmRegister reg_address_offset = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
+				
+		//assembler.add(new LlvmLoad(reg_address_offset, reg));
+				
+		//System.out.format("regtype arraytype: %s %s :)\n",reg.type, array.type);
+				
+		//assembler.add(new LlvmLoad());
+		//assembler.add(new LlvmStore(value, reg));
+		/***********************************************/
+		
+		LlvmRegister reg_address_offset = new LlvmRegister(LlvmPrimitiveType.I32);
+		
+		assembler.add(new LlvmLoad(reg_address_offset, reg));
+		
+		return reg_address_offset;
+		
+		/*//peguei ponteiro para o ponteiro do elemento que queremos.
 		//Agora preciso carregar esse ponteiro em outro registrador, para utilizar ele.
 		assembler.add(new LlvmGetElementPointer(reg, array, offsets));
 		
@@ -853,7 +879,7 @@ public class Codegen extends VisitorAdapter{
 		
 		//System.out.format("regtype arraytype: %s %s :)\n",reg.type, array.type);
 		
-		return value_to_return;
+		return value_to_return;*/
 		
 		
 	}
