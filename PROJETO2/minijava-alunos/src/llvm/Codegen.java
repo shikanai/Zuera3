@@ -831,14 +831,24 @@ public class Codegen extends VisitorAdapter{
 		LlvmValue array = n.array.accept(this);
 		LlvmValue index = n.index.accept(this);
 		
-		LlvmRegister reg = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
+		LlvmRegister reg = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32PTR));
 		List<LlvmValue> offsets = new LinkedList<LlvmValue>();
 		offsets.add(index);
 		
+		//peguei ponteiro para o ponteiro do elemento que queremos.
+		//Agora preciso carregar esse ponteiro em outro registrador, para utilizar ele.
 		assembler.add(new LlvmGetElementPointer(reg, array, offsets));
 		
+		LlvmRegister reg_address_offset = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
 		
-		return reg;
+		assembler.add(new LlvmLoad(reg_address_offset, reg));
+		
+		LlvmRegister value_to_return = new LlvmRegister(LlvmPrimitiveType.I32);
+		assembler.add(new LlvmLoad(value_to_return, reg_address_offset));
+		
+		//System.out.format("regtype arraytype: %s %s :)\n",reg.type, array.type);
+		
+		return value_to_return;
 		
 		
 	}
@@ -1027,9 +1037,16 @@ public class Codegen extends VisitorAdapter{
 		//apontador vindo do identifier, que armazena a informacao que queremos.
 		LlvmValue address = n.name.accept(this);
 		System.out.format("@identifierexp address: %s\n",address);
-
+		
 		//ponteiro que passaremos para o load
 		LlvmNamedValue needed_info_ptr = new LlvmNamedValue(address.toString(),address.type);
+		
+		System.out.format("@identifierexp address infos: %s %s\n", address.toString(), address.type);
+		
+		if(address.type.toString().contains("* *")){
+			System.out.format("retornando ponteiro....\n");
+			return needed_info_ptr;
+		}
 		
 		//res = load type * %where_from_load
 		assembler.add(new LlvmLoad(returns, needed_info_ptr));
