@@ -976,6 +976,40 @@ public class Codegen extends VisitorAdapter{
 		
 		StringBuilder lengths = new StringBuilder();
 		
+		//temos que verificar se a array foi alocada dinamicamente ou estaticamente, para poder
+		//alterar a forma de pegar o length.
+		if(array.type.toString().contains("* *")){
+			System.out.format("array declarada dinamicamente... carregando tamanho do primeiro endereco\n");
+			
+			//carregando tamanho do inicio da array
+			LinkedList<LlvmValue> offsets = new LinkedList<LlvmValue>();
+			
+			//offsets do getelementptr
+			offsets.add(new LlvmIntegerLiteral(0));
+			//offsets.add(new LlvmIntegerLiteral(0));
+			
+			//registrador onde receberemos o pointer para o array (**)
+			LlvmRegister length_ptr = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32PTR));
+
+			//pegando o endereco da array
+			assembler.add(new LlvmGetElementPointer(length_ptr, array, offsets));
+			
+			//registrador no qual vamos carregar a array (*)
+			LlvmRegister array_reg = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
+			
+			//array carregada
+			assembler.add(new LlvmLoad(array_reg, length_ptr));
+			
+			//registrador no qual vamos carregar o primeiro elemento da array
+			LlvmRegister array_size = new LlvmRegister(LlvmPrimitiveType.I32);
+			
+			//carrega o size do endereco inicial da array.
+			assembler.add(new LlvmLoad(array_size, array_reg));
+			
+			//LlvmIntegerLiteral migueh = new LlvmIntegerLiteral(20);
+			return array_size;
+		}
+		else{
 		
 		//agora vamos parsear esse tamanho, em busca do tamanho total da string...
 		
@@ -1030,6 +1064,7 @@ public class Codegen extends VisitorAdapter{
 		LlvmIntegerLiteral length_final = new LlvmIntegerLiteral(total_length);
 		
 		return length_final;
+		}
 		
 	}
 	public LlvmValue visit(Call n){
@@ -1211,13 +1246,42 @@ public class Codegen extends VisitorAdapter{
 		LlvmType type = (LlvmType) n.type.accept(this);
 		
 		System.out.format("tamanho: %s :)\n",tamanho);
+		System.out.format("tamanho.type: %s :)\n",tamanho.type);
+		System.out.format("@newarray type: %s\n",type);
 		
 		if(tamanho.toString().contains("%")){
 			
+			//para conseguir armazenar o tamanho, em uma array mallocada, vamos
+			//armazenar na primeira posicao dela o tamanho, e depois a array em si.
+			
 			LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I32PTR);
 			
-			assembler.add(new LlvmMalloc(lhs, LlvmPrimitiveType.I32, tamanho));
+			LlvmRegister final_size_reg = new LlvmRegister(LlvmPrimitiveType.I32);
 			
+			assembler.add(new LlvmPlus(final_size_reg, LlvmPrimitiveType.I32, tamanho,new LlvmIntegerLiteral(1)));
+			
+			System.out.format("@final size reg: %s\n",final_size_reg);
+			
+			//alocando memoria necessaria para a array e para o tamanho.
+			assembler.add(new LlvmMalloc(lhs, LlvmPrimitiveType.I32, final_size_reg));
+			
+			//inserindo tamanho no inicio da array
+			LinkedList<LlvmValue> offsets = new LinkedList<LlvmValue>();
+			
+			//offsets do getelementptr
+			offsets.add(new LlvmIntegerLiteral(0));
+			
+			//registrador onde receberemos o pointer para o endereco inicial
+			LlvmRegister length_ptr = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
+
+			//pegando o endereco para o elemento inicial (onde vai ficar o size)
+			assembler.add(new LlvmGetElementPointer(length_ptr, lhs, offsets));
+			
+			//armazenando o size no endereco.
+			assembler.add(new LlvmStore(tamanho, length_ptr));
+			
+			
+			//retorna registrador que contem o ponteiro para o endereco alocado.
 			return lhs;
 			
 			//return null;
