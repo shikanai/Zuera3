@@ -1145,7 +1145,13 @@ public class Codegen extends VisitorAdapter{
 		
 		if(tamanho.toString().contains("%")){
 			
-			return null;
+			LlvmRegister lhs = new LlvmRegister(LlvmPrimitiveType.I32PTR);
+			
+			assembler.add(new LlvmMalloc(lhs, LlvmPrimitiveType.I32, tamanho));
+			
+			return lhs;
+			
+			//return null;
 		}else{
 		
 		//Como nos testes nao utilizamos array de outros tipos, fica assim por hora...
