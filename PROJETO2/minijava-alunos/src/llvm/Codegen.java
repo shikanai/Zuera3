@@ -736,6 +736,21 @@ public class Codegen extends VisitorAdapter{
 	//ToDo
 	public LlvmValue visit(ArrayAssign n){
 		System.out.format("assign array :)\n");
+		
+		//A ideia eh um lookup dando store na posicao que eu pegar
+		//Teste nao deu certo..
+		LlvmValue array = n.var.accept(this);
+		LlvmValue index = n.index.accept(this);
+		LlvmValue value = n.value.accept(this);
+		
+		LlvmRegister reg = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
+		List<LlvmValue> offsets = new LinkedList<LlvmValue>();
+		offsets.add(index);
+		
+		assembler.add(new LlvmGetElementPointer(reg, array, offsets));
+		
+		assembler.add(new LlvmStore(value, reg));
+		
 		return null;
 	}
 
@@ -802,7 +817,19 @@ public class Codegen extends VisitorAdapter{
 	
 	public LlvmValue visit(ArrayLookup n){
 		System.out.format("arraylookup :)\n");
-		return null;
+		
+		LlvmValue array = n.array.accept(this);
+		LlvmValue index = n.index.accept(this);
+		
+		LlvmRegister reg = new LlvmRegister(new LlvmPointer(LlvmPrimitiveType.I32));
+		List<LlvmValue> offsets = new LinkedList<LlvmValue>();
+		offsets.add(index);
+		
+		assembler.add(new LlvmGetElementPointer(reg, array, offsets));
+		
+		
+		return reg;
+		
 		
 	}
 	//nao consegui acessar o length da array.
