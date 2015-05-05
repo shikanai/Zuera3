@@ -162,7 +162,8 @@ public class Codegen extends VisitorAdapter{
 	}
 	
 	public LlvmValue visit(IntegerLiteral n){
-		return new LlvmIntegerLiteral(n.value);
+		LlvmIntegerLiteral returns = new LlvmIntegerLiteral(n.value);
+		return returns;
 	};
 	
 	// Todos os visit's que devem ser implementados	
